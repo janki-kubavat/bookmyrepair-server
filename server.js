@@ -4,6 +4,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const crypto = require("crypto");
+const os = require("os");
 const Brand = require("./models/Brand");
 const Model = require("./models/Model");
 const Booking = require("./models/Booking");
@@ -14,8 +15,18 @@ const { sendBookingNotifications, sendBookingStatusNotifications } = require("./
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+
 app.use(express.json({ limit: "10mb" }));
+
+app.get("/", (req, res) => {
+  res.send("Your server is on");
+});
 
 const hashPassword = (password, salt) =>
   crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
@@ -35,6 +46,52 @@ const buildAddressMapUrl = (address) => {
   const value = cleanString(address);
   if (!value) return "";
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+};
+const withProtocol = (value, protocol = "https") => {
+  const input = cleanString(value);
+  if (!input) return "";
+  if (/^https?:\/\//i.test(input)) return input;
+  return `${protocol}://${input}`;
+};
+const getLocalNetworkUrl = () => {
+  const networkInterfaces = os.networkInterfaces();
+
+  for (const addresses of Object.values(networkInterfaces)) {
+    if (!Array.isArray(addresses)) continue;
+
+    for (const address of addresses) {
+      if (address && address.family === "IPv4" && !address.internal) {
+        return `http://${address.address}:${PORT}`;
+      }
+    }
+  }
+
+  return "";
+};
+const getPublicServerUrl = () => {
+  const directUrl =
+    process.env.PUBLIC_SERVER_URL ||
+    process.env.SERVER_URL ||
+    process.env.APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.WEBSITE_HOSTNAME ||
+    process.env.URL;
+
+  if (cleanString(directUrl)) {
+    return withProtocol(directUrl);
+  }
+
+  const domainOnlyUrl =
+    process.env.RAILWAY_PUBLIC_DOMAIN ||
+    process.env.RAILWAY_STATIC_URL ||
+    process.env.VERCEL_URL ||
+    process.env.CF_PAGES_URL;
+
+  if (cleanString(domainOnlyUrl)) {
+    return withProtocol(domainOnlyUrl, "https");
+  }
+
+  return "";
 };
 
 const STATUS_VALUES = [
@@ -832,5 +889,17 @@ app.delete("/api/bookings/:id", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  const localhostUrl = `http://localhost:${PORT}`;
+  const localNetworkUrl = getLocalNetworkUrl();
+  const publicServerUrl = getPublicServerUrl();
+
+  console.log(`Your server is running on: ${publicServerUrl || localhostUrl}`);
+
+  if (localNetworkUrl && localNetworkUrl !== localhostUrl) {
+    console.log(`Local network URL: ${localNetworkUrl}`);
+  }
+
+  if (publicServerUrl) {
+    console.log(`Public URL: ${publicServerUrl}`);
+  }
 });
