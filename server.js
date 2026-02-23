@@ -366,17 +366,23 @@ app.delete("/api/technicians/:id", async (req, res) => {
 // ================= BOOKING API =================
 
 // Add Booking
+// Add Booking (FAST VERSION - NO WAIT FOR NOTIFICATION)
 app.post("/api/bookings", async (req, res) => {
   try {
     const selectedIssues = Array.isArray(req.body?.selectedIssues)
       ? req.body.selectedIssues.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+
     const pickupOption = cleanString(req.body?.pickupOption) || "Pickup & Drop";
     const resolvedAddress = cleanString(req.body?.address) || cleanString(req.body?.location);
+
     const pickupAddress =
-      cleanString(req.body?.pickupAddress) || (pickupOption === "Pickup & Drop" ? resolvedAddress : "");
+      cleanString(req.body?.pickupAddress) ||
+      (pickupOption === "Pickup & Drop" ? resolvedAddress : "");
+
     const pickupPhone =
-      cleanPhone(req.body?.pickupPhone) || (pickupOption === "Pickup & Drop" ? cleanPhone(req.body?.phone) : "");
+      cleanPhone(req.body?.pickupPhone) ||
+      (pickupOption === "Pickup & Drop" ? cleanPhone(req.body?.phone) : "");
 
     const payload = {
       brand: cleanString(req.body?.brand),
@@ -419,38 +425,30 @@ app.post("/api/bookings", async (req, res) => {
       !payload.email ||
       !payload.address
     ) {
-      return res
-        .status(400)
-        .json({ error: "brand, model, service, name, phone, email and address are required" });
+      return res.status(400).json({
+        error: "brand, model, service, name, phone, email and address are required",
+      });
     }
 
+    // ✅ Save booking
     const bookingDoc = await Booking.create(payload);
     const booking = bookingDoc.toObject();
 
-    let notification = {
-      email: { configured: false, customerSent: false, adminSent: false, errors: [] },
-      whatsapp: { configured: false, customerSent: false, adminSent: false, errors: [] },
-    };
+    // ✅ Send response immediately (FAST)
+    res.status(201).json(booking);
 
-    try {
-      notification = await sendBookingNotifications(booking);
-    } catch (notificationError) {
-      notification.email.errors.push(`Notification service error: ${notificationError.message}`);
-    }
+    // 🔥 Run notification in background (NO await)
+    sendBookingNotifications(booking)
+      .then((result) => {
+        console.log("Notification success:", result);
+      })
+      .catch((err) => {
+        console.error("Notification failed:", err.message);
+      });
 
-    res.status(201).json({ ...booking, notification });
   } catch (error) {
+    console.error("Booking error:", error);
     res.status(400).json({ error: error.message });
-  }
-});
-
-// Get All Bookings (latest first)
-app.get("/api/bookings", async (req, res) => {
-  try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    res.json(bookings);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 
