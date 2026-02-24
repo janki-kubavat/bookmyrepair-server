@@ -365,7 +365,15 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 // ================= BOOKING API =================
 
-// Add Booking
+// ✅ Get All Bookings (Admin Orders)
+app.get("/api/bookings", async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // Add Booking (FAST VERSION - NO WAIT FOR NOTIFICATION)
 app.post("/api/bookings", async (req, res) => {
   try {
