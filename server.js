@@ -8,7 +8,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const crypto = require("crypto");
-const os = require("os");
+
 const Brand = require("./models/Brand");
 const Model = require("./models/Model");
 const Booking = require("./models/Booking");
