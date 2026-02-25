@@ -227,7 +227,18 @@ app.post("/api/admin/login", async (req, res) => {
 });
 
 /* ================= BRAND API ================= */
-
+// Get Single Model
+app.get("/api/models/:id", async (req, res) => {
+  try {
+    const model = await Model.findById(req.params.id).populate("brandId");
+    if (!model) {
+      return res.status(404).json({ error: "Model not found" });
+    }
+    res.json(model);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 // Add Brand
 app.post("/api/brands", async (req, res) => {
   try {
