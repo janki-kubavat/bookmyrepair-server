@@ -222,17 +222,22 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
+/* ================= BRAND API ================= */
+
 // Add Brand
 app.post("/api/brands", async (req, res) => {
   try {
-    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-    const logo = typeof req.body?.logo === "string" ? req.body.logo.trim() : "";
+    const { name, logo } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: "name is required" });
+      return res.status(400).json({ error: "Brand name required" });
     }
 
-    const brand = await Brand.create({ name, logo });
+    const brand = await Brand.create({
+      name: name.trim(),
+      logo: logo || ""
+    });
+
     res.status(201).json(brand);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -242,27 +247,65 @@ app.post("/api/brands", async (req, res) => {
 // Get Brands
 app.get("/api/brands", async (req, res) => {
   try {
-    const brands = await Brand.find();
+    const brands = await Brand.find().sort({ createdAt: -1 });
     res.json(brands);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ================= MODEL API =================
+// Update Brand
+app.put("/api/brands/:id", async (req, res) => {
+  try {
+    const updates = {};
+    if (req.body.name) updates.name = req.body.name.trim();
+    if (req.body.logo) updates.logo = req.body.logo;
+
+    const brand = await Brand.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    res.json(brand);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Delete Brand
+app.delete("/api/brands/:id", async (req, res) => {
+  try {
+    await Model.deleteMany({ brandId: req.params.id });
+
+    const brand = await Brand.findByIdAndDelete(req.params.id);
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    res.json({ message: "Brand deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/* ================= MODEL API ================= */
 
 // Add Model
 app.post("/api/models", async (req, res) => {
   try {
-    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-    const brandId = req.body?.brandId;
-    const image = typeof req.body?.image === "string" ? req.body.image.trim() : "";
+    const { name, brandId, image } = req.body;
 
     if (!name || !brandId) {
-      return res.status(400).json({ error: "name and brandId are required" });
+      return res.status(400).json({ error: "Name and BrandId required" });
     }
 
-    const model = await Model.create({ name, brandId, image });
+    const model = await Model.create({
+      name: name.trim(),
+      brandId,
+      image: image || ""
+    });
+
     res.status(201).json(model);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -276,6 +319,71 @@ app.get("/api/models", async (req, res) => {
     res.json(models);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Model
+app.put("/api/models/:id", async (req, res) => {
+  try {
+    const updates = {};
+    if (req.body.name) updates.name = req.body.name.trim();
+    if (req.body.brandId) updates.brandId = req.body.brandId;
+    if (req.body.image) updates.image = req.body.image;
+
+    const model = await Model.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+
+    if (!model) return res.status(404).json({ error: "Model not found" });
+
+    res.json(model);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Delete Model
+app.delete("/api/models/:id", async (req, res) => {
+  try {
+    const model = await Model.findByIdAndDelete(req.params.id);
+    if (!model) return res.status(404).json({ error: "Model not found" });
+
+    res.json({ message: "Model deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/* ================= BULK CSV UPLOAD ================= */
+
+const upload = multer({ dest: "uploads/" });
+
+app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
+  try {
+    const results = [];
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", async () => {
+        for (const row of results) {
+          const brand = await Brand.findOne({ name: row.brand });
+          if (!brand) continue;
+
+          await Model.create({
+            name: row.model,
+            brandId: brand._id,
+            image: ""
+          });
+        }
+
+        fs.unlinkSync(req.file.path);
+        res.json({ message: "Bulk upload successful" });
+      });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 
