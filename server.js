@@ -262,6 +262,9 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 /* ================= BOOKING API ================= */
 
+/* ================= BOOKING API ================= */
+
+// 1️⃣ Create booking
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
@@ -271,30 +274,13 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
+// 2️⃣ Get all bookings
 app.get("/api/bookings", async (req, res) => {
   const bookings = await Booking.find().sort({ createdAt: -1 });
   res.json(bookings);
 });
 
-app.get("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findById(req.params.id);
-  res.json(booking);
-});
-
-app.put("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
-  res.json(booking);
-});
-
-app.delete("/api/bookings/:id", async (req, res) => {
-  await Booking.findByIdAndDelete(req.params.id);
-  res.json({ message: "Booking deleted" });
-});
-
+// 3️⃣ 🔥 TRACK ROUTE MUST BE HERE
 app.post("/api/bookings/track", async (req, res) => {
   try {
     const { trackingId, phone } = req.body;
@@ -313,11 +299,31 @@ app.post("/api/bookings/track", async (req, res) => {
     }
 
     res.json(booking);
-
   } catch (error) {
-    console.error("Track error:", error);
     res.status(500).json({ error: "Internal server error." });
   }
+});
+
+// 4️⃣ AFTER track
+app.get("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  res.json(booking);
+});
+
+// 5️⃣ Update
+app.put("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
+  res.json(booking);
+});
+
+// 6️⃣ Delete
+app.delete("/api/bookings/:id", async (req, res) => {
+  await Booking.findByIdAndDelete(req.params.id);
+  res.json({ message: "Booking deleted" });
 });
 /* ================= START SERVER ================= */
 
