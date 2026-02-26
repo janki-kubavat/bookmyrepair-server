@@ -186,10 +186,13 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
 
-    bufferStream
-      .pipe(csv())
-      .on("data", (data) => results.push(data))
-      .on("end", async () => {
+ bufferStream
+  .pipe(csv({
+    mapHeaders: ({ header }) =>
+      header.replace(/^\uFEFF/, "").trim().toLowerCase()
+  }))
+  .on("data", (data) => results.push(data))
+  .on("end", async () => {
         let brandsCreated = 0;
         let modelsCreated = 0;
 
