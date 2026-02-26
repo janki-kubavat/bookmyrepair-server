@@ -312,6 +312,21 @@ app.post("/api/bookings/track", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.post("/api/bookings/track", async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 /* ================= START SERVER ================= */
 
 app.listen(PORT, () => {
