@@ -373,13 +373,6 @@ app.delete("/api/models/:id", async (req, res) => {
 
 /* ================= BULK CSV UPLOAD ================= */
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-});
-
-
-           const stream = require("stream");
-
 app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
@@ -394,31 +387,46 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
       .pipe(csv())
       .on("data", (data) => results.push(data))
       .on("end", async () => {
+
+        let imported = 0;
+
         for (const row of results) {
+
           if (!row.brand || !row.model) continue;
 
+          // Find brand (case insensitive)
           const brand = await Brand.findOne({
-            name: row.brand.trim(),
+            name: { $regex: `^${row.brand.trim()}$`, $options: "i" },
           });
 
           if (!brand) continue;
+
+          // Prevent duplicate model for same brand
+          const existing = await Model.findOne({
+            name: row.model.trim(),
+            brandId: brand._id,
+          });
+
+          if (existing) continue;
 
           await Model.create({
             name: row.model.trim(),
             brandId: brand._id,
             image: "",
           });
+
+          imported++;
         }
 
-        res.json({
+        return res.json({
           message: "Bulk upload successful",
-          imported: results.filter(r => r.brand && r.model).length,
+          imported,
         });
       });
 
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ error: error.message });
+    console.error("Bulk upload error:", error);
+    res.status(500).json({ error: "Bulk upload failed" });
   }
 });
 
