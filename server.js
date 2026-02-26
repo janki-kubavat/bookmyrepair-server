@@ -294,37 +294,29 @@ app.delete("/api/bookings/:id", async (req, res) => {
   await Booking.findByIdAndDelete(req.params.id);
   res.json({ message: "Booking deleted" });
 });
+
 app.post("/api/bookings/track", async (req, res) => {
   try {
-    const { bookingId, phone } = req.body;
+    const { trackingId, phone } = req.body;
+
+    if (!trackingId || !phone) {
+      return res.status(400).json({ error: "Tracking ID and phone required." });
+    }
 
     const booking = await Booking.findOne({
-      _id: bookingId,
-      phone: phone,
+      trackingId: trackingId.trim().toUpperCase(),
+      phone: phone.trim(),
     });
 
     if (!booking) {
-      return res.status(404).json({ error: "Booking not found" });
+      return res.status(404).json({ error: "Booking not found." });
     }
 
     res.json(booking);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-app.post("/api/bookings/track", async (req, res) => {
-  try {
-    const { bookingId } = req.body;
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({ error: "Booking not found" });
-    }
-
-    res.json(booking);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Track error:", error);
+    res.status(500).json({ error: "Internal server error." });
   }
 });
 /* ================= START SERVER ================= */
