@@ -294,7 +294,24 @@ app.delete("/api/bookings/:id", async (req, res) => {
   await Booking.findByIdAndDelete(req.params.id);
   res.json({ message: "Booking deleted" });
 });
+app.post("/api/bookings/track", async (req, res) => {
+  try {
+    const { bookingId, phone } = req.body;
 
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      phone: phone,
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 /* ================= START SERVER ================= */
 
 app.listen(PORT, () => {
