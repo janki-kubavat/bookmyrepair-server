@@ -379,48 +379,55 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "CSV file is required" });
     }
 
-    const results = [];
+    const rows = [];
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
 
     bufferStream
       .pipe(csv())
-      .on("data", (data) => results.push(data))
+      .on("data", (data) => rows.push(data))
       .on("end", async () => {
 
-        let imported = 0;
+        let inserted = 0;
+        let updated = 0;
 
-        for (const row of results) {
+        for (const row of rows) {
 
           if (!row.brand || !row.model) continue;
 
-          // Find brand (case insensitive)
           const brand = await Brand.findOne({
             name: { $regex: `^${row.brand.trim()}$`, $options: "i" },
           });
 
           if (!brand) continue;
 
-          // Prevent duplicate model for same brand
+          const modelName = row.model.trim();
+
           const existing = await Model.findOne({
-            name: row.model.trim(),
+            name: modelName,
             brandId: brand._id,
           });
 
-          if (existing) continue;
-
-          await Model.create({
-            name: row.model.trim(),
-            brandId: brand._id,
-            image: "",
-          });
-
-          imported++;
+          if (existing) {
+            // UPDATE existing model
+            existing.name = modelName;
+            await existing.save();
+            updated++;
+          } else {
+            // CREATE new model
+            await Model.create({
+              name: modelName,
+              brandId: brand._id,
+              image: "",
+            });
+            inserted++;
+          }
         }
 
         return res.json({
-          message: "Bulk upload successful",
-          imported,
+          message: "Bulk upload completed",
+          inserted,
+          updated,
         });
       });
 
@@ -429,7 +436,6 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
     res.status(500).json({ error: "Bulk upload failed" });
   }
 });
-
 // ================= TECHNICIAN API =================
 
 // Add Technician
