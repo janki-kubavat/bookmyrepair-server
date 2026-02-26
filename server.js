@@ -379,9 +379,7 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
     }
 
     const results = [];
-    const errors = [];
     const stream = require("stream");
-
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
 
@@ -390,56 +388,53 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
       .on("data", (data) => results.push(data))
       .on("end", async () => {
 
-        let inserted = 0;
+        let brandsCreated = 0;
+        let modelsCreated = 0;
 
-        for (let i = 0; i < results.length; i++) {
-          const row = results[i];
-
-          if (!row.brand || !row.model) {
-            errors.push(`Row ${i + 1}: Missing brand or model`);
-            continue;
-          }
+        for (const row of results) {
+          if (!row.brand || !row.model) continue;
 
           const brandName = row.brand.trim();
           const modelName = row.model.trim();
 
-          const brand = await Brand.findOne({
+          // 1️⃣ Find or Create Brand
+          let brand = await Brand.findOne({
             name: { $regex: `^${brandName}$`, $options: "i" }
           });
 
           if (!brand) {
-            errors.push(`Row ${i + 1}: Brand "${brandName}" not found`);
-            continue;
+            brand = await Brand.create({
+              name: brandName,
+              logo: ""
+            });
+            brandsCreated++;
           }
 
-          const existing = await Model.findOne({
+          // 2️⃣ Check if Model Exists
+          const existingModel = await Model.findOne({
             name: modelName,
-            brandId: brand._id,
+            brandId: brand._id
           });
 
-          if (existing) {
-            errors.push(`Row ${i + 1}: Model "${modelName}" already exists`);
-            continue;
+          if (!existingModel) {
+            await Model.create({
+              name: modelName,
+              brandId: brand._id,
+              image: ""
+            });
+            modelsCreated++;
           }
-
-          await Model.create({
-            name: modelName,
-            brandId: brand._id,
-            image: "",
-          });
-
-          inserted++;
         }
 
-        return res.json({
+        res.json({
           message: "Bulk upload completed",
-          inserted,
-          errors,
+          brandsCreated,
+          modelsCreated
         });
       });
 
   } catch (error) {
-    console.error("Bulk upload error:", error);
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
