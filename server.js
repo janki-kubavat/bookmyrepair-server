@@ -372,36 +372,45 @@ app.delete("/api/models/:id", async (req, res) => {
 });
 
 /* ================= BULK CSV UPLOAD ================= */
-
 app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "CSV file is required" });
     }
 
-    const rows = [];
+    const results = [];
+    const errors = [];
+    const stream = require("stream");
+
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
 
     bufferStream
       .pipe(csv())
-      .on("data", (data) => rows.push(data))
+      .on("data", (data) => results.push(data))
       .on("end", async () => {
 
         let inserted = 0;
-        let updated = 0;
 
-        for (const row of rows) {
+        for (let i = 0; i < results.length; i++) {
+          const row = results[i];
 
-          if (!row.brand || !row.model) continue;
+          if (!row.brand || !row.model) {
+            errors.push(`Row ${i + 1}: Missing brand or model`);
+            continue;
+          }
+
+          const brandName = row.brand.trim();
+          const modelName = row.model.trim();
 
           const brand = await Brand.findOne({
-            name: { $regex: `^${row.brand.trim()}$`, $options: "i" },
+            name: { $regex: `^${brandName}$`, $options: "i" }
           });
 
-          if (!brand) continue;
-
-          const modelName = row.model.trim();
+          if (!brand) {
+            errors.push(`Row ${i + 1}: Brand "${brandName}" not found`);
+            continue;
+          }
 
           const existing = await Model.findOne({
             name: modelName,
@@ -409,31 +418,29 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
           });
 
           if (existing) {
-            // UPDATE existing model
-            existing.name = modelName;
-            await existing.save();
-            updated++;
-          } else {
-            // CREATE new model
-            await Model.create({
-              name: modelName,
-              brandId: brand._id,
-              image: "",
-            });
-            inserted++;
+            errors.push(`Row ${i + 1}: Model "${modelName}" already exists`);
+            continue;
           }
+
+          await Model.create({
+            name: modelName,
+            brandId: brand._id,
+            image: "",
+          });
+
+          inserted++;
         }
 
         return res.json({
           message: "Bulk upload completed",
           inserted,
-          updated,
+          errors,
         });
       });
 
   } catch (error) {
     console.error("Bulk upload error:", error);
-    res.status(500).json({ error: "Bulk upload failed" });
+    res.status(500).json({ error: error.message });
   }
 });
 // ================= TECHNICIAN API =================
