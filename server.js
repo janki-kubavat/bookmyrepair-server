@@ -412,7 +412,7 @@ app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
 
         res.json({
           message: "Bulk upload successful",
-          imported: results.length,
+          imported: results.filter(r => r.brand && r.model).length,
         });
       });
 
