@@ -373,31 +373,51 @@ app.delete("/api/models/:id", async (req, res) => {
 
 /* ================= BULK CSV UPLOAD ================= */
 
-const upload = multer({ dest: "uploads/" });
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
+
+
+           const stream = require("stream");
 
 app.post("/api/models/bulk", upload.single("file"), async (req, res) => {
   try {
-    const results = [];
+    if (!req.file) {
+      return res.status(400).json({ error: "CSV file is required" });
+    }
 
-    fs.createReadStream(req.file.path)
+    const results = [];
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
+    bufferStream
       .pipe(csv())
       .on("data", (data) => results.push(data))
       .on("end", async () => {
         for (const row of results) {
-          const brand = await Brand.findOne({ name: row.brand });
+          if (!row.brand || !row.model) continue;
+
+          const brand = await Brand.findOne({
+            name: row.brand.trim(),
+          });
+
           if (!brand) continue;
 
           await Model.create({
-            name: row.model,
+            name: row.model.trim(),
             brandId: brand._id,
-            image: ""
+            image: "",
           });
         }
 
-        fs.unlinkSync(req.file.path);
-        res.json({ message: "Bulk upload successful" });
+        res.json({
+          message: "Bulk upload successful",
+          imported: results.length,
+        });
       });
+
   } catch (error) {
+    console.error(error);
     res.status(400).json({ error: error.message });
   }
 });
