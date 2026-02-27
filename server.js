@@ -20,6 +20,8 @@ const PORT = process.env.PORT || 5000;
 
 /* ================= MIDDLEWARE ================= */
 
+/* ================= MIDDLEWARE ================= */
+
 const allowedOrigins = [
   "http://localhost:3000",
   "https://bookmyrepair.netlify.app"
@@ -30,10 +32,11 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error("CORS not allowed"));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
@@ -41,12 +44,6 @@ app.options("*", cors());
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log(err));
-
 /* ================= ROOT ================= */
 
 app.get("/", (req, res) => {
