@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const serviceSchema = new mongoose.Schema(
@@ -6,27 +5,19 @@ const serviceSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
-    description: String,
-
-    icon: String, // optional icon name
-    image: String, // uploaded image
-
+    description: {
+      type: String,
+      trim: true,
+    },
     price: {
       type: Number,
       required: true,
     },
-
-    brand: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Brand",
+    image: {
+      type: String,
     },
-
-    model: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Model",
-    },
-
     isActive: {
       type: Boolean,
       default: true,
