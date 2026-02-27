@@ -8,6 +8,8 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
 
     const bookingId = booking.trackingId || booking._id;
 
+    console.log("Sending email to:", booking.email);
+
     let subject = `Booking Confirmed - ${bookingId}`;
     let title = "Booking Confirmed";
 
@@ -16,35 +18,37 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
       title = "Booking Status Updated";
     }
 
+    const html = `
+      <div style="font-family:Arial;">
+        <h2>${title}</h2>
+        <p><strong>Booking ID:</strong> ${bookingId}</p>
+        <p><strong>Status:</strong> ${booking.status}</p>
+        ${
+          previousStatus
+            ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
+            : ""
+        }
+        ${
+          booking.adminNote
+            ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
+            : ""
+        }
+        <br/>
+        <p>Thank you for choosing BookMyRepair.</p>
+      </div>
+    `;
+
     await resend.emails.send({
-      from: "BookMyRepair <onboarding@resend.dev>",
+      from: "BookMyRepair <onboarding@resend.dev>", // safe default sender
       to: booking.email,
-      subject: subject,
-      html: `
-        <div style="font-family:Arial;">
-          <h2>${title}</h2>
-          <p><strong>Booking ID:</strong> ${bookingId}</p>
-          <p><strong>Status:</strong> ${booking.status}</p>
-          ${
-            previousStatus
-              ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
-              : ""
-          }
-          ${
-            booking.adminNote
-              ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
-              : ""
-          }
-          <br/>
-          <p>Thank you for choosing us.</p>
-        </div>
-      `,
+      subject,
+      html,
     });
 
     console.log("Email sent successfully");
 
   } catch (error) {
-    console.error("Email error:", error.message);
+    console.error("Email error:", error);
   }
 };
 
