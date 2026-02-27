@@ -291,14 +291,13 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 
 
-// 1️⃣ Create booking
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
 
-    res.status(201).json(booking); // Send response first
+    res.status(201).json(booking); // send response fast
 
-    sendBookingEmail(booking); // Send email in background
+    sendBookingEmail(booking); // send email in background
 
   } catch (error) {
     res.status(400).json({ error: error.message });
