@@ -13,6 +13,7 @@ const Model = require("./models/Model");
 const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
 const Technician = require("./models/Technician");
+const { sendBookingEmail } = require("./services/bookingNotifications");
                           
 const Service = require("./models/Service");
 const router = express.Router();
@@ -294,16 +295,43 @@ app.delete("/api/technicians/:id", async (req, res) => {
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
+
+    await sendBookingEmail(booking); // 🔥 confirmation email
+
     res.status(201).json(booking);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
-
 // 2️⃣ Get all bookings
 app.get("/api/bookings", async (req, res) => {
   const bookings = await Booking.find().sort({ createdAt: -1 });
   res.json(bookings);
+});
+app.put("/api/bookings/:id", async (req, res) => {
+  try {
+    const oldBooking = await Booking.findById(req.params.id);
+    if (!oldBooking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    const previousStatus = oldBooking.status;
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    if (req.body.status && previousStatus !== req.body.status) {
+      await sendBookingEmail(updatedBooking, previousStatus);
+    }
+
+    res.json(updatedBooking);
+
+  } catch (error) {
+    res.status(500).json({ error: "Update failed" });
+  }
 });
 
 // 3️⃣ 🔥 TRACK ROUTE MUST BE HERE
