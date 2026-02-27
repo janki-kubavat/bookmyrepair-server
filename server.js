@@ -352,13 +352,15 @@ app.delete("/api/bookings/:id", async (req, res) => {
   res.json({ message: "Booking deleted" });
 });
 /* ================= SERVICES API ================= */
+/* ================= SERVICES API ================= */
 
+// CREATE
 app.post("/api/services", async (req, res) => {
   try {
     const { name } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ message: "Name required" });
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ message: "Service name required" });
     }
 
     const existing = await Service.findOne({ name: name.trim() });
@@ -379,39 +381,30 @@ app.post("/api/services", async (req, res) => {
   }
 });
 
-// GET ALL SERVICES
+
+// GET ALL
 app.get("/api/services", async (req, res) => {
   try {
     const services = await Service.find().sort({ createdAt: -1 });
     res.json(services);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 
-// GET SINGLE SERVICE
-app.get("/api/services/:id", async (req, res) => {
-  try {
-    const service = await Service.findById(req.params.id);
-
-    if (!service) {
-      return res.status(404).json({ message: "Service not found" });
-    }
-
-    res.json(service);
-  } catch (error) {
-    res.status(400).json({ message: "Invalid ID" });
-  }
-});
-
-
-// UPDATE SERVICE
+// UPDATE
 app.put("/api/services/:id", async (req, res) => {
   try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Service name required" });
+    }
+
     const service = await Service.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      { name: name.trim() },
       { new: true }
     );
 
@@ -420,13 +413,14 @@ app.put("/api/services/:id", async (req, res) => {
     }
 
     res.json(service);
+
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 
-// DELETE SERVICE
+// DELETE
 app.delete("/api/services/:id", async (req, res) => {
   try {
     const service = await Service.findByIdAndDelete(req.params.id);
@@ -441,4 +435,3 @@ app.delete("/api/services/:id", async (req, res) => {
     res.status(400).json({ message: "Invalid ID" });
   }
 });
-
