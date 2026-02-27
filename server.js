@@ -289,16 +289,17 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 /* ================= BOOKING API ================= */
 
-/* ================= BOOKING API ================= */
+
 
 // 1️⃣ Create booking
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
 
-    await sendBookingEmail(booking); // 🔥 confirmation email
+    res.status(201).json(booking); // Send response first
 
-    res.status(201).json(booking);
+    sendBookingEmail(booking); // Send email in background
+
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -308,9 +309,11 @@ app.get("/api/bookings", async (req, res) => {
   const bookings = await Booking.find().sort({ createdAt: -1 });
   res.json(bookings);
 });
+// 
 app.put("/api/bookings/:id", async (req, res) => {
   try {
     const oldBooking = await Booking.findById(req.params.id);
+
     if (!oldBooking) {
       return res.status(404).json({ error: "Booking not found" });
     }
@@ -323,11 +326,11 @@ app.put("/api/bookings/:id", async (req, res) => {
       { new: true }
     );
 
-    if (req.body.status && previousStatus !== req.body.status) {
-      await sendBookingEmail(updatedBooking, previousStatus);
-    }
+    res.json(updatedBooking); // respond first
 
-    res.json(updatedBooking);
+    if (req.body.status && previousStatus !== req.body.status) {
+      sendBookingEmail(updatedBooking, previousStatus);
+    }
 
   } catch (error) {
     res.status(500).json({ error: "Update failed" });
@@ -379,7 +382,7 @@ app.delete("/api/bookings/:id", async (req, res) => {
   await Booking.findByIdAndDelete(req.params.id);
   res.json({ message: "Booking deleted" });
 });
-/* ================= SERVICES API ================= */
+
 /* ================= SERVICES API ================= */
 
 // CREATE
