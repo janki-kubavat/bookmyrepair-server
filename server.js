@@ -12,13 +12,16 @@ const Brand = require("./models/Brand");
 const Model = require("./models/Model");
 const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
-const Technician = require("./models/Technician");
+const Technician = require("./models/Technician
+                          
+const Service = require("../models/Service");
+const router = express.Router();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 
-/* ================= MIDDLEWARE ================= */
+
 
 /* ================= MIDDLEWARE ================= */
 
@@ -344,3 +347,19 @@ app.delete("/api/bookings/:id", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+
+// services API
+
+  );
+  res.json(updated);
+});
+
+
+// 🔹 Delete Service
+router.delete("/:id", async (req, res) => {
+  await Service.findByIdAndDelete(req.params.id);
+  res.json({ message: "Service Deleted" });
+});
+
+module.exports = router;
