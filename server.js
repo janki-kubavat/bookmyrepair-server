@@ -356,16 +356,15 @@ app.delete("/api/bookings/:id", async (req, res) => {
 // CREATE SERVICE
 app.post("/api/services", async (req, res) => {
   try {
-    const { name, description, price, image } = req.body;
+    const { name, description, image } = req.body;
 
-    if (!name || !price) {
-      return res.status(400).json({ message: "Name and price required" });
+    if (!name) {
+      return res.status(400).json({ message: "Name required" });
     }
 
     const service = await Service.create({
       name,
       description,
-      price,
       image
     });
 
