@@ -6,17 +6,16 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      unique: true,
     },
-    description: {
-      type: String,
-      trim: true,
-    },
+    description: String,
     price: {
       type: Number,
       required: true,
     },
     image: {
       type: String,
+      default: "",
     },
     isActive: {
       type: Boolean,
