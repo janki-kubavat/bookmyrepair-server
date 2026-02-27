@@ -353,28 +353,31 @@ app.delete("/api/bookings/:id", async (req, res) => {
 });
 /* ================= SERVICES API ================= */
 
-// CREATE SERVICE
 app.post("/api/services", async (req, res) => {
   try {
-    const { name, description, image } = req.body;
+    const { name } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Name required" });
     }
 
+    const existing = await Service.findOne({ name: name.trim() });
+
+    if (existing) {
+      return res.status(400).json({ message: "Service already exists" });
+    }
+
     const service = await Service.create({
-      name,
-      description,
-      image
+      name: name.trim(),
     });
 
     res.status(201).json(service);
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 });
-
 
 // GET ALL SERVICES
 app.get("/api/services", async (req, res) => {
