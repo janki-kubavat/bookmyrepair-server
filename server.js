@@ -14,7 +14,7 @@ const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
 const Technician = require("./models/Technician");
                           
-const Service = require("../models/Service");
+const Service = require("./models/Service");
 const router = express.Router();
 
 const app = express();
