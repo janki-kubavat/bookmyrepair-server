@@ -4,12 +4,7 @@ const resend = new Resend(process.env.re_hGYqjRmP_PT3uME3FttpDaSJiCPzqeQFj);
 
 const sendBookingEmail = async (booking, previousStatus = null) => {
   try {
-    console.log("📩 Email function started");
-
-    if (!booking.email) {
-      console.log("❌ No email provided");
-      return;
-    }
+    console.log("📧 Email function started");
 
     const bookingId = booking.trackingId || booking._id;
 
@@ -22,7 +17,7 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
     }
 
     const html = `
-      <div style="font-family: Arial; padding:20px;">
+      <div style="font-family:Arial;">
         <h2>${title}</h2>
         <p><strong>Booking ID:</strong> ${bookingId}</p>
         <p><strong>Status:</strong> ${booking.status}</p>
@@ -37,12 +32,12 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
             : ""
         }
         <br/>
-        <p>Thank you for choosing BookMyRepair.</p>
+        <p>Thank you for choosing us.</p>
       </div>
     `;
 
     const response = await resend.emails.send({
- from: "BookMyRepair <bookmyrepair01@gmail.com>", // MUST use this if no domain verified
+      from: "BookMyRepair <bookmyrepair01@gmail.com>", // your resend account email
       to: booking.email,
       subject: subject,
       html: html,
