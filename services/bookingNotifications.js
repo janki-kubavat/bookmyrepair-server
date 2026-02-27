@@ -42,7 +42,7 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
     `;
 
     const response = await resend.emails.send({
-      from: "onboarding@resend.dev", // MUST use this if no domain verified
+ from: "BookMyRepair <bookmyrepair01@gmail.com>", // MUST use this if no domain verified
       to: booking.email,
       subject: subject,
       html: html,
