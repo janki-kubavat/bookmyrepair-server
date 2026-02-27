@@ -1,27 +1,11 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-let transporter;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const getTransporter = () => {
-  if (transporter) return transporter;
-
-  transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    connectionTimeout: 10000,
-  });
-
-  return transporter;
-};
-
-const sendBookingEmail = (booking, previousStatus = null) => {
+const sendBookingEmail = async (booking, previousStatus = null) => {
   try {
-    const mailer = getTransporter();
+    console.log("Email function started");
+
     const bookingId = booking.trackingId || booking._id;
 
     let subject = `Booking Confirmed - ${bookingId}`;
@@ -32,37 +16,32 @@ const sendBookingEmail = (booking, previousStatus = null) => {
       title = "Booking Status Updated";
     }
 
-    const html = `
-      <div style="font-family:Arial;">
-        <h2>${title}</h2>
-        <p><strong>Booking ID:</strong> ${bookingId}</p>
-        <p><strong>Status:</strong> ${booking.status}</p>
-        ${
-          previousStatus
-            ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
-            : ""
-        }
-        ${
-          booking.adminNote
-            ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
-            : ""
-        }
-        <br/>
-        <p>Thank you for choosing us.</p>
-      </div>
-    `;
-
-    // 🔥 IMPORTANT: NO await (background email)
-    mailer.sendMail({
-      from: process.env.GMAIL_USER,
+    await resend.emails.send({
+      from: "BookMyRepair <onboarding@resend.dev>",
       to: booking.email,
-      subject,
-      html,
-    }).catch((err) => {
-      console.error("Mail failed:", err.message);
+      subject: subject,
+      html: `
+        <div style="font-family:Arial;">
+          <h2>${title}</h2>
+          <p><strong>Booking ID:</strong> ${bookingId}</p>
+          <p><strong>Status:</strong> ${booking.status}</p>
+          ${
+            previousStatus
+              ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
+              : ""
+          }
+          ${
+            booking.adminNote
+              ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
+              : ""
+          }
+          <br/>
+          <p>Thank you for choosing us.</p>
+        </div>
+      `,
     });
 
-    console.log("Email triggered");
+    console.log("Email sent successfully");
 
   } catch (error) {
     console.error("Email error:", error.message);
