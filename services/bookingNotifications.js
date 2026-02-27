@@ -13,12 +13,13 @@ const getTransporter = () => {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    connectionTimeout: 10000,
   });
 
   return transporter;
 };
 
-const sendBookingEmail = async (booking, previousStatus = null) => {
+const sendBookingEmail = (booking, previousStatus = null) => {
   try {
     const mailer = getTransporter();
     const bookingId = booking.trackingId || booking._id;
@@ -51,14 +52,17 @@ const sendBookingEmail = async (booking, previousStatus = null) => {
       </div>
     `;
 
-    await mailer.sendMail({
+    // 🔥 IMPORTANT: NO await (background email)
+    mailer.sendMail({
       from: process.env.GMAIL_USER,
       to: booking.email,
       subject,
       html,
+    }).catch((err) => {
+      console.error("Mail failed:", err.message);
     });
 
-    console.log("Email sent successfully");
+    console.log("Email triggered");
 
   } catch (error) {
     console.error("Email error:", error.message);
