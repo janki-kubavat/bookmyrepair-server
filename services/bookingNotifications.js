@@ -18,50 +18,34 @@ const getTransporter = () => {
   return transporter;
 };
 
-/* ===========================
-   BOOKING CONFIRMATION
-=========================== */
-const sendBookingConfirmation = async (booking) => {
+const sendBookingEmail = async (booking, previousStatus = null) => {
   try {
     const mailer = getTransporter();
     const bookingId = booking.trackingId || booking._id;
 
+    let subject = `Booking Confirmed - ${bookingId}`;
+    let title = "Booking Confirmed";
+
+    if (previousStatus) {
+      subject = `Booking Update - ${booking.status}`;
+      title = "Booking Status Updated";
+    }
+
     const html = `
       <div style="font-family:Arial;">
-        <h2>Booking Confirmed</h2>
+        <h2>${title}</h2>
         <p><strong>Booking ID:</strong> ${bookingId}</p>
         <p><strong>Status:</strong> ${booking.status}</p>
-        <p>Your repair request has been received successfully.</p>
-      </div>
-    `;
-
-    await mailer.sendMail({
-      from: process.env.GMAIL_USER,
-      to: booking.email,
-      subject: `Booking Confirmed - ${bookingId}`,
-      html,
-    });
-
-  } catch (error) {
-    console.error("Booking email error:", error.message);
-  }
-};
-
-/* ===========================
-   STATUS UPDATE EMAIL
-=========================== */
-const sendStatusUpdateEmail = async (booking, previousStatus) => {
-  try {
-    const mailer = getTransporter();
-    const bookingId = booking.trackingId || booking._id;
-
-    const html = `
-      <div style="font-family:Arial;">
-        <h2>Booking Status Updated</h2>
-        <p><strong>Booking ID:</strong> ${bookingId}</p>
-        <p><strong>Previous Status:</strong> ${previousStatus}</p>
-        <p><strong>Current Status:</strong> ${booking.status}</p>
-        ${booking.adminNote ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>` : ""}
+        ${
+          previousStatus
+            ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
+            : ""
+        }
+        ${
+          booking.adminNote
+            ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
+            : ""
+        }
         <br/>
         <p>Thank you for choosing us.</p>
       </div>
@@ -70,16 +54,15 @@ const sendStatusUpdateEmail = async (booking, previousStatus) => {
     await mailer.sendMail({
       from: process.env.GMAIL_USER,
       to: booking.email,
-      subject: `Booking Update - ${booking.status}`,
+      subject,
       html,
     });
 
+    console.log("Email sent successfully");
+
   } catch (error) {
-    console.error("Status email error:", error.message);
+    console.error("Email error:", error.message);
   }
 };
 
-module.exports = {
-  sendBookingConfirmation,
-  sendStatusUpdateEmail,
-};
+module.exports = { sendBookingEmail };
