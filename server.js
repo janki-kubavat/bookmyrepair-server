@@ -12,7 +12,7 @@ const Brand = require("./models/Brand");
 const Model = require("./models/Model");
 const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
-const Technician = require("./models/Technician
+const Technician = require("./models/Technician");
                           
 const Service = require("../models/Service");
 const router = express.Router();
@@ -348,18 +348,203 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
+/* ======================================================
+   🔥 SERVICES APIs (FULL PROFESSIONAL VERSION)
+====================================================== */
 
-// services API
+/* 1️⃣ CREATE SERVICE */
+app.post("/api/services", async (req, res) => {
+  try {
+    const { name, description, price, image, isActive } = req.body;
 
-  );
-  res.json(updated);
+    if (!name || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and Price are required",
+      });
+    }
+
+    const existing = await Service.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "Service already exists",
+      });
+    }
+
+    const service = await Service.create({
+      name: name.trim(),
+      description,
+      price,
+      image,
+      isActive: isActive ?? true,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Service created successfully",
+      data: service,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 });
 
 
-// 🔹 Delete Service
-router.delete("/:id", async (req, res) => {
-  await Service.findByIdAndDelete(req.params.id);
-  res.json({ message: "Service Deleted" });
+/* 2️⃣ GET ALL SERVICES (Search + Filter + Pagination) */
+app.get("/api/services", async (req, res) => {
+  try {
+    const { search, active, page = 1, limit = 10 } = req.query;
+
+    let filter = {};
+
+    if (active !== undefined) {
+      filter.isActive = active === "true";
+    }
+
+    if (search) {
+      filter.name = { $regex: search, $options: "i" };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const services = await Service.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Service.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
+      data: services,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 });
 
-module.exports = router;
+
+/* 3️⃣ GET SINGLE SERVICE */
+app.get("/api/services/:id", async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: service,
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid service ID",
+    });
+  }
+});
+
+
+/* 4️⃣ UPDATE SERVICE */
+app.put("/api/services/:id", async (req, res) => {
+  try {
+    const service = await Service.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Service updated successfully",
+      data: service,
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+
+/* 5️⃣ DELETE SERVICE */
+app.delete("/api/services/:id", async (req, res) => {
+  try {
+    const service = await Service.findByIdAndDelete(req.params.id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Service deleted successfully",
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid service ID",
+    });
+  }
+});
+
+
+/* 6️⃣ TOGGLE ACTIVE / INACTIVE */
+app.patch("/api/services/:id/status", async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    service.isActive = !service.isActive;
+    await service.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Service status updated",
+      data: service,
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid service ID",
+    });
+  }
+});
+
