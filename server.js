@@ -15,8 +15,6 @@ const Admin = require("./models/Admin");
 const Technician = require("./models/Technician");
 const Service = require("./models/Service");
 
-const { sendBookingEmail } = require("./services/bookingNotifications");
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -35,28 +33,48 @@ mongoose.connect(process.env.MONGO_URI)
 
 /* ================= MIDDLEWARE ================= */
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://bookmyrepair.netlify.app"
+];
+
 app.use(cors({
-  origin: ["http://localhost:3000", "https://bookmyrepair.netlify.app"],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* ================= ROOT ================= */
 
 app.get("/", (req, res) => {
-  res.send("Server is running");
+  res.send("Server is running ✅");
 });
 
-/* ================= ADMIN ================= */
+/* ================= UTIL FUNCTIONS ================= */
 
 const hashPassword = (password, salt) =>
   crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
 
+const generateToken = () =>
+  crypto.randomBytes(24).toString("hex");
+
+/* ================= ADMIN API ================= */
+
 app.post("/api/admin/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    const existing = await Admin.findOne({ email });
+    if (existing)
+      return res.status(409).json({ error: "Email already exists" });
 
     const salt = crypto.randomBytes(16).toString("hex");
     const hash = hashPassword(password, salt);
@@ -69,6 +87,7 @@ app.post("/api/admin/register", async (req, res) => {
     });
 
     res.status(201).json(admin);
+
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -79,19 +98,25 @@ app.post("/api/admin/login", async (req, res) => {
     const { email, password } = req.body;
 
     const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(401).json({ error: "Invalid credentials" });
+    if (!admin)
+      return res.status(401).json({ error: "Invalid credentials" });
 
     const hash = hashPassword(password, admin.passwordSalt);
     if (hash !== admin.passwordHash)
       return res.status(401).json({ error: "Invalid credentials" });
 
-    res.json(admin);
+    res.json({
+      message: "Login success",
+      token: generateToken(),
+      admin
+    });
+
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-/* ================= BRAND ================= */
+/* ================= BRAND API ================= */
 
 app.post("/api/brands", async (req, res) => {
   const brand = await Brand.create(req.body);
@@ -99,11 +124,22 @@ app.post("/api/brands", async (req, res) => {
 });
 
 app.get("/api/brands", async (req, res) => {
-  const brands = await Brand.find();
+  const brands = await Brand.find().sort({ createdAt: -1 });
   res.json(brands);
 });
 
-/* ================= MODEL ================= */
+app.put("/api/brands/:id", async (req, res) => {
+  const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(brand);
+});
+
+app.delete("/api/brands/:id", async (req, res) => {
+  await Model.deleteMany({ brandId: req.params.id });
+  await Brand.findByIdAndDelete(req.params.id);
+  res.json({ message: "Brand deleted" });
+});
+
+/* ================= MODEL API ================= */
 
 app.post("/api/models", async (req, res) => {
   const model = await Model.create(req.body);
@@ -115,7 +151,17 @@ app.get("/api/models", async (req, res) => {
   res.json(models);
 });
 
-/* ================= TECHNICIAN ================= */
+app.put("/api/models/:id", async (req, res) => {
+  const model = await Model.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(model);
+});
+
+app.delete("/api/models/:id", async (req, res) => {
+  await Model.findByIdAndDelete(req.params.id);
+  res.json({ message: "Model deleted" });
+});
+
+/* ================= TECHNICIAN API ================= */
 
 app.post("/api/technicians", async (req, res) => {
   const tech = await Technician.create(req.body);
@@ -127,66 +173,56 @@ app.get("/api/technicians", async (req, res) => {
   res.json(techs);
 });
 
-/* ================= BOOKING ================= */
+app.put("/api/technicians/:id", async (req, res) => {
+  const tech = await Technician.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(tech);
+});
 
-// CREATE BOOKING
+app.delete("/api/technicians/:id", async (req, res) => {
+  await Technician.findByIdAndDelete(req.params.id);
+  res.json({ message: "Technician deleted" });
+});
+
+/* ================= BOOKING API ================= */
+
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
-
-    console.log("Booking created:", booking._id);
-    console.log("Customer email:", booking.email);
-
-    res.status(201).json(booking);
-
-    // send email in background
-    sendBookingEmail(booking);
-
+    res.status(201).json({
+      message: "Booking created successfully",
+      booking
+    });
   } catch (error) {
-    console.error(error);
     res.status(400).json({ error: error.message });
   }
 });
 
-// GET ALL BOOKINGS
 app.get("/api/bookings", async (req, res) => {
   const bookings = await Booking.find().sort({ createdAt: -1 });
   res.json(bookings);
 });
 
-// UPDATE BOOKING STATUS
-app.put("/api/bookings/:id", async (req, res) => {
-  try {
-    const oldBooking = await Booking.findById(req.params.id);
-    if (!oldBooking)
-      return res.status(404).json({ error: "Booking not found" });
-
-    const previousStatus = oldBooking.status;
-
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-
-    res.json(updatedBooking);
-
-    if (req.body.status && previousStatus !== req.body.status) {
-      sendBookingEmail(updatedBooking, previousStatus);
-    }
-
-  } catch (error) {
-    res.status(500).json({ error: "Update failed" });
-  }
+app.get("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  res.json(booking);
 });
 
-// TRACK BOOKING
+app.put("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(booking);
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+  await Booking.findByIdAndDelete(req.params.id);
+  res.json({ message: "Booking deleted" });
+});
+
 app.post("/api/bookings/track", async (req, res) => {
   const { trackingId, phone } = req.body;
 
   const booking = await Booking.findOne({
-    trackingId: trackingId?.trim().toUpperCase(),
-    phone: phone?.trim()
+    trackingId: trackingId.trim().toUpperCase(),
+    phone: phone.trim()
   });
 
   if (!booking)
@@ -195,7 +231,7 @@ app.post("/api/bookings/track", async (req, res) => {
   res.json(booking);
 });
 
-/* ================= SERVICES ================= */
+/* ================= SERVICE API ================= */
 
 app.post("/api/services", async (req, res) => {
   const service = await Service.create(req.body);
@@ -203,6 +239,16 @@ app.post("/api/services", async (req, res) => {
 });
 
 app.get("/api/services", async (req, res) => {
-  const services = await Service.find();
+  const services = await Service.find().sort({ createdAt: -1 });
   res.json(services);
+});
+
+app.put("/api/services/:id", async (req, res) => {
+  const service = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(service);
+});
+
+app.delete("/api/services/:id", async (req, res) => {
+  await Service.findByIdAndDelete(req.params.id);
+  res.json({ message: "Service deleted" });
 });
