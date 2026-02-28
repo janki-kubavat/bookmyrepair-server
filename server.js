@@ -188,10 +188,12 @@ app.delete("/api/technicians/:id", async (req, res) => {
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await Booking.create(req.body);
+
     res.status(201).json({
-      message: "Booking created successfully",
-      booking
+      trackingId: booking.trackingId || booking._id,
+      phone: booking.phone
     });
+
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
