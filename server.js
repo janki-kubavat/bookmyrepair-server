@@ -190,15 +190,15 @@ app.post("/api/bookings", async (req, res) => {
     const booking = await Booking.create(req.body);
 
     res.status(201).json({
-      trackingId: booking.trackingId || booking._id,
-      phone: booking.phone
+      trackingId: booking.trackingId,
+      phone: booking.phone,
     });
 
   } catch (error) {
+    console.error("CREATE BOOKING ERROR:", error);
     res.status(400).json({ error: error.message });
   }
 });
-
 app.get("/api/bookings", async (req, res) => {
   const bookings = await Booking.find().sort({ createdAt: -1 });
   res.json(bookings);
