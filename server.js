@@ -223,7 +223,7 @@ app.post("/api/bookings/track", async (req, res) => {
   const { trackingId, phone } = req.body;
 
   const booking = await Booking.findOne({
-    trackingId: trackingId.trim().toUpperCase(),
+    _id: trackingId,
     phone: phone.trim()
   });
 
@@ -232,7 +232,6 @@ app.post("/api/bookings/track", async (req, res) => {
 
   res.json(booking);
 });
-
 /* ================= SERVICE API ================= */
 
 app.post("/api/services", async (req, res) => {
