@@ -1,54 +1,37 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
-const resend = new Resend(process.env.re_hGYqjRmP_PT3uME3FttpDaSJiCPzqeQFj);
+const sendBookingEmail = async (booking) => {
 
-const sendBookingEmail = async (booking, previousStatus = null) => {
-  try {
-    console.log("📧 Email function started");
-
-    const bookingId = booking.trackingId || booking._id;
-
-    let subject = `Booking Confirmed - ${bookingId}`;
-    let title = "Booking Confirmed";
-
-    if (previousStatus) {
-      subject = `Booking Update - ${booking.status}`;
-      title = "Booking Status Updated";
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS
     }
+  });
 
-    const html = `
-      <div style="font-family:Arial;">
-        <h2>${title}</h2>
-        <p><strong>Booking ID:</strong> ${bookingId}</p>
-        <p><strong>Status:</strong> ${booking.status}</p>
-        ${
-          previousStatus
-            ? `<p><strong>Previous Status:</strong> ${previousStatus}</p>`
-            : ""
-        }
-        ${
-          booking.adminNote
-            ? `<p><strong>Admin Note:</strong> ${booking.adminNote}</p>`
-            : ""
-        }
-        <br/>
-        <p>Thank you for choosing us.</p>
-      </div>
-    `;
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: booking.email,
+    subject: "Booking Confirmation",
+    html: `
+      <h2>Booking Confirmed</h2>
 
-    const response = await resend.emails.send({
-      from: "BookMyRepair <bookmyrepair01@gmail.com>", // your resend account email
-      to: booking.email,
-      subject: subject,
-      html: html,
-    });
+      <p>Hello ${booking.name}</p>
 
-    console.log("✅ Email sent successfully");
-    console.log("Resend Response:", response);
+      <p><b>Brand:</b> ${booking.brand}</p>
+      <p><b>Model:</b> ${booking.model}</p>
+      <p><b>Phone:</b> ${booking.phone}</p>
+      <p><b>Primary Issue:</b> ${booking.primaryIssue}</p>
+      <p><b>Secondary Issue:</b> ${booking.secondaryIssue}</p>
+      <p><b>Pickup Type:</b> ${booking.pickupType}</p>
+      <p><b>Address:</b> ${booking.address}</p>
 
-  } catch (error) {
-    console.error("❌ Email error:", error);
-  }
+      <p>Thank you for booking with us.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
 };
 
 module.exports = { sendBookingEmail };
