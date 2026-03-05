@@ -14,7 +14,7 @@ const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
 const Technician = require("./models/Technician");
 const Service = require("./models/Service");
-const { sendBookingEmail } = require("./services/bookingNotifications");
+// const { sendBookingEmail } = require("./services/bookingNotifications");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -187,11 +187,7 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 app.post("/api/bookings", async (req, res) => {
   try {
-
     const booking = await Booking.create(req.body);
-
-    // ✅ Send email to customer
-    await sendBookingEmail(booking);
 
     res.status(201).json({
       trackingId: booking.trackingId,
@@ -199,10 +195,6 @@ app.post("/api/bookings", async (req, res) => {
     });
 
   } catch (error) {
-app.get("/api/bookings", async (req, res) => {
-  const bookings = await Booking.find().sort({ createdAt: -1 });
-  res.json(bookings);
-});
 
 app.get("/api/bookings/:id", async (req, res) => {
   const booking = await Booking.findById(req.params.id);
