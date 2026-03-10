@@ -5,8 +5,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const crypto = require("crypto");
 const multer = require("multer");
-const csv = require("csv-parser");
-const stream = require("stream");
+const fs = require("fs");
+const path = require("path");
 
 const Brand = require("./models/Brand");
 const Model = require("./models/Model");
@@ -14,413 +14,307 @@ const Booking = require("./models/Booking");
 const Admin = require("./models/Admin");
 const Technician = require("./models/Technician");
 const Service = require("./models/Service");
-// const { sendBookingEmail } = require("./services/bookingNotifications");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 /* ================= DATABASE ================= */
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected");
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.log("❌ MongoDB Connection Error:", err.message);
+.then(() => {
+  console.log("✅ MongoDB Connected");
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
+
+})
+.catch((err)=>{
+  console.log("MongoDB error",err);
+});
+
 
 /* ================= MIDDLEWARE ================= */
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://bookmyrepair.netlify.app"
-];
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({extended:true}));
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
-  credentials: true
-}));
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
 
 /* ================= ROOT ================= */
 
-app.get("/", (req, res) => {
+app.get("/",(req,res)=>{
   res.send("Server is running ✅");
 });
 
-/* ================= UTIL FUNCTIONS ================= */
 
-const hashPassword = (password, salt) =>
-  crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
+/* ================= PASSWORD UTILS ================= */
 
-const generateToken = () =>
-  crypto.randomBytes(24).toString("hex");
+const hashPassword = (password,salt)=>
+crypto.pbkdf2Sync(password,salt,100000,64,"sha512").toString("hex");
 
-/* ================= ADMIN API ================= */
+const generateToken = ()=>crypto.randomBytes(24).toString("hex");
 
-app.post("/api/admin/register", async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
 
-    const existing = await Admin.findOne({ email });
-    if (existing)
-      return res.status(409).json({ error: "Email already exists" });
+/* ================= ADMIN ================= */
+
+app.post("/api/admin/register",async(req,res)=>{
+
+  try{
+
+    const {name,email,password}=req.body;
+
+    const exist = await Admin.findOne({email});
+    if(exist) return res.status(400).json({error:"Email exists"});
 
     const salt = crypto.randomBytes(16).toString("hex");
-    const hash = hashPassword(password, salt);
+    const hash = hashPassword(password,salt);
 
     const admin = await Admin.create({
       name,
       email,
-      passwordHash: hash,
-      passwordSalt: salt,
+      passwordHash:hash,
+      passwordSalt:salt
     });
 
-    res.status(201).json(admin);
+    res.json(admin);
 
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  }catch(err){
+    res.status(500).json({error:err.message});
   }
+
 });
 
-app.post("/api/admin/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
 
-    const admin = await Admin.findOne({ email });
-    if (!admin)
-      return res.status(401).json({ error: "Invalid credentials" });
+app.post("/api/admin/login",async(req,res)=>{
 
-    const hash = hashPassword(password, admin.passwordSalt);
-    if (hash !== admin.passwordHash)
-      return res.status(401).json({ error: "Invalid credentials" });
+  try{
+
+    const {email,password}=req.body;
+
+    const admin = await Admin.findOne({email});
+    if(!admin) return res.status(401).json({error:"Invalid login"});
+
+    const hash = hashPassword(password,admin.passwordSalt);
+
+    if(hash!==admin.passwordHash)
+    return res.status(401).json({error:"Invalid login"});
 
     res.json({
-      message: "Login success",
-      token: generateToken(),
+      message:"Login success",
+      token:generateToken(),
       admin
     });
 
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  }catch(err){
+    res.status(500).json({error:err.message});
   }
+
 });
 
-/* ================= BRAND API ================= */
 
-app.post("/api/brands", async (req, res) => {
+/* ================= BRAND ================= */
+
+app.post("/api/brands",async(req,res)=>{
   const brand = await Brand.create(req.body);
-  res.status(201).json(brand);
-});
-
-app.get("/api/brands", async (req, res) => {
-  const brands = await Brand.find().sort({ createdAt: -1 });
-  res.json(brands);
-});
-
-app.put("/api/brands/:id", async (req, res) => {
-  const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, { new: true });
   res.json(brand);
 });
 
-app.delete("/api/brands/:id", async (req, res) => {
-  await Model.deleteMany({ brandId: req.params.id });
+app.get("/api/brands",async(req,res)=>{
+  const brands = await Brand.find().sort({createdAt:-1});
+  res.json(brands);
+});
+
+app.put("/api/brands/:id",async(req,res)=>{
+  const brand = await Brand.findByIdAndUpdate(req.params.id,req.body,{new:true});
+  res.json(brand);
+});
+
+app.delete("/api/brands/:id",async(req,res)=>{
+
+  await Model.deleteMany({brandId:req.params.id});
   await Brand.findByIdAndDelete(req.params.id);
-  res.json({ message: "Brand deleted" });
+
+  res.json({message:"Brand deleted"});
 });
 
-/* ================= MODEL API ================= */
 
-app.post("/api/models", async (req, res) => {
+/* ================= MODELS ================= */
+
+app.post("/api/models",async(req,res)=>{
   const model = await Model.create(req.body);
-  res.status(201).json(model);
+  res.json(model);
 });
 
-app.get("/api/models", async (req, res) => {
+app.get("/api/models",async(req,res)=>{
   const models = await Model.find().populate("brandId");
   res.json(models);
 });
 
-app.put("/api/models/:id", async (req, res) => {
-  const model = await Model.findByIdAndUpdate(req.params.id, req.body, { new: true });
+app.put("/api/models/:id",async(req,res)=>{
+  const model = await Model.findByIdAndUpdate(req.params.id,req.body,{new:true});
   res.json(model);
 });
 
-app.delete("/api/models/:id", async (req, res) => {
+app.delete("/api/models/:id",async(req,res)=>{
   await Model.findByIdAndDelete(req.params.id);
-  res.json({ message: "Model deleted" });
+  res.json({message:"Model deleted"});
 });
 
 
+/* ================= TECHNICIANS ================= */
 
-/* ================= TECHNICIAN API ================= */
+app.post("/api/technicians",async(req,res)=>{
 
-// Add Technician
-app.post("/api/technicians", async (req, res) => {
-  try {
-    const { name, phone } = req.body;
+  const tech = await Technician.create(req.body);
 
-    const tech = await Technician.create({
-      name,
-      phone
-    });
+  res.json({
+    message:"Technician added",
+    technician:tech
+  });
 
-    res.status(201).json({
-      message: "Technician added successfully",
-      technician: tech
-    });
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-// Get All Technicians
-app.get("/api/technicians", async (req, res) => {
-  try {
+app.get("/api/technicians",async(req,res)=>{
 
-    const techs = await Technician.find().sort({ createdAt: -1 });
+  const techs = await Technician.find().sort({createdAt:-1});
 
-    res.json(techs);
+  res.json(techs);
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-// Get Single Technician
-app.get("/api/technicians/:id", async (req, res) => {
-  try {
+app.put("/api/technicians/:id",async(req,res)=>{
 
-    const tech = await Technician.findById(req.params.id);
+  const tech = await Technician.findByIdAndUpdate(req.params.id,req.body,{new:true});
 
-    if (!tech) {
-      return res.status(404).json({ error: "Technician not found" });
-    }
+  res.json(tech);
 
-    res.json(tech);
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-// Update Technician
-app.put("/api/technicians/:id", async (req, res) => {
-  try {
+app.delete("/api/technicians/:id",async(req,res)=>{
 
-    const tech = await Technician.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+  await Technician.findByIdAndDelete(req.params.id);
 
-    res.json({
-      message: "Technician updated successfully",
-      technician: tech
-    });
+  res.json({message:"Deleted"});
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-// Delete Technician
-app.delete("/api/technicians/:id", async (req, res) => {
-  try {
 
-    await Technician.findByIdAndDelete(req.params.id);
+/* ================= BOOKINGS ================= */
 
-    res.json({
-      message: "Technician deleted successfully"
-    });
+app.post("/api/bookings",async(req,res)=>{
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const booking = await Booking.create(req.body);
+
+  res.json({
+    trackingId:booking.trackingId,
+    phone:booking.phone
+  });
+
 });
 
-/* ================= BOOKING API ================= */
 
-app.post("/api/bookings", async (req, res) => {
-  try {
-    const booking = await Booking.create(req.body);
+app.post("/api/bookings/track",async(req,res)=>{
 
-    res.status(201).json({
-      trackingId: booking.trackingId,
-      phone: booking.phone,
-    });
+  const {trackingId,phone}=req.body;
 
-  } catch (error) {
-    console.error("BOOKING ERROR:", error);
-    res.status(500).json({ error: "Failed to create booking" });
-  }
-});
+  const booking = await Booking.findOne({
+    trackingId:trackingId.trim().toUpperCase(),
+    phone:phone.trim()
+  });
 
-app.get("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findById(req.params.id);
+  if(!booking) return res.status(404).json({error:"Booking not found"});
+
   res.json(booking);
+
 });
 
-app.put("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(booking);
-});
 
-app.delete("/api/bookings/:id", async (req, res) => {
-  await Booking.findByIdAndDelete(req.params.id);
-  res.json({ message: "Booking deleted" });
-});
-app.post("/api/bookings/track", async (req, res) => {
-  try {
-    const { trackingId, phone } = req.body;
+/* ================= IMAGE UPLOAD FIX ================= */
 
-    // ✅ Check missing values
-    if (!trackingId || !phone) {
-      return res.status(400).json({ error: "Tracking ID and phone are required" });
-    }
+const uploadPath = path.join(__dirname,"uploads");
 
-    const cleanTrackingId = trackingId.toString().trim().toUpperCase();
-    const cleanPhone = phone.toString().trim();
+if(!fs.existsSync(uploadPath)){
+  fs.mkdirSync(uploadPath,{recursive:true});
+}
 
-    const booking = await Booking.findOne({
-      trackingId: cleanTrackingId,
-      phone: cleanPhone,
-    });
+app.use("/uploads",express.static(uploadPath));
 
-    if (!booking) {
-      return res.status(404).json({ error: "Booking not found" });
-    }
-
-    res.json(booking);
-
-  } catch (error) {
-    console.error("TRACK API ERROR:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-/* ================= SERVICE API ================= */
-
-/* IMAGE UPLOAD SETUP */
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
+
+  destination:(req,file,cb)=>{
+    cb(null,uploadPath);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
+
+  filename:(req,file,cb)=>{
+    cb(null,Date.now()+"-"+file.originalname);
   }
+
 });
 
-const upload = multer({ storage });
-
-app.use("/uploads", express.static(uploadPath));
+const upload = multer({storage});
 
 
-/* ADD SERVICE */
+/* ================= SERVICES ================= */
 
-app.post("/api/services", upload.single("image"), async (req, res) => {
+app.post("/api/services",upload.single("image"),async(req,res)=>{
 
-  try {
+  try{
 
-    const { name, subtitle } = req.body;
+    const {name,subtitle}=req.body;
 
     const service = await Service.create({
       name,
       subtitle,
-      image: req.file ? `/uploads/${req.file.filename}` : ""
+      image:req.file ? `/uploads/${req.file.filename}` : ""
     });
-
-    res.status(201).json(service);
-
-  } catch (error) {
-
-    console.error("SERVICE ADD ERROR:", error);
-
-    res.status(500).json({ error: error.message });
-
-  }
-
-});
-
-
-/* GET SERVICES */
-
-app.get("/api/services", async (req, res) => {
-
-  try {
-
-    const services = await Service.find().sort({ createdAt: -1 });
-
-    res.json(services);
-
-  } catch (error) {
-
-    res.status(500).json({ error: error.message });
-
-  }
-
-});
-
-
-/* UPDATE SERVICE */
-
-app.put("/api/services/:id", upload.single("image"), async (req, res) => {
-
-  try {
-
-    const { name, subtitle } = req.body;
-
-    const updateData = {
-      name,
-      subtitle
-    };
-
-    if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
-    }
-
-    const service = await Service.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
 
     res.json(service);
 
-  } catch (error) {
+  }catch(err){
 
-    res.status(500).json({ error: error.message });
+    console.log(err);
+    res.status(500).json({error:err.message});
 
   }
 
 });
 
 
-/* DELETE SERVICE */
+app.get("/api/services",async(req,res)=>{
 
-app.delete("/api/services/:id", async (req, res) => {
+  const services = await Service.find().sort({createdAt:-1});
 
-  try {
+  res.json(services);
 
-    await Service.findByIdAndDelete(req.params.id);
+});
 
-    res.json({ message: "Service deleted" });
 
-  } catch (error) {
+app.put("/api/services/:id",upload.single("image"),async(req,res)=>{
 
-    res.status(500).json({ error: error.message });
+  const {name,subtitle}=req.body;
 
+  const data={
+    name,
+    subtitle
+  };
+
+  if(req.file){
+    data.image=`/uploads/${req.file.filename}`;
   }
+
+  const service = await Service.findByIdAndUpdate(req.params.id,data,{new:true});
+
+  res.json(service);
+
+});
+
+
+app.delete("/api/services/:id",async(req,res)=>{
+
+  await Service.findByIdAndDelete(req.params.id);
+
+  res.json({message:"Service deleted"});
 
 });
