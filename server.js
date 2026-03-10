@@ -195,6 +195,10 @@ app.post("/api/bookings", async (req, res) => {
     });
 
   } catch (error) {
+    console.error("BOOKING ERROR:", error);
+    res.status(500).json({ error: "Failed to create booking" });
+  }
+});
 
 app.get("/api/bookings/:id", async (req, res) => {
   const booking = await Booking.findById(req.params.id);
