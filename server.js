@@ -163,24 +163,91 @@ app.delete("/api/models/:id", async (req, res) => {
 
 /* ================= TECHNICIAN API ================= */
 
+/* ================= TECHNICIAN API ================= */
+
+// Add Technician
 app.post("/api/technicians", async (req, res) => {
-  const tech = await Technician.create(req.body);
-  res.status(201).json(tech);
+  try {
+    const { name, phone } = req.body;
+
+    const tech = await Technician.create({
+      name,
+      phone
+    });
+
+    res.status(201).json({
+      message: "Technician added successfully",
+      technician: tech
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+// Get All Technicians
 app.get("/api/technicians", async (req, res) => {
-  const techs = await Technician.find();
-  res.json(techs);
+  try {
+
+    const techs = await Technician.find().sort({ createdAt: -1 });
+
+    res.json(techs);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+// Get Single Technician
+app.get("/api/technicians/:id", async (req, res) => {
+  try {
+
+    const tech = await Technician.findById(req.params.id);
+
+    if (!tech) {
+      return res.status(404).json({ error: "Technician not found" });
+    }
+
+    res.json(tech);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Technician
 app.put("/api/technicians/:id", async (req, res) => {
-  const tech = await Technician.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(tech);
+  try {
+
+    const tech = await Technician.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json({
+      message: "Technician updated successfully",
+      technician: tech
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+// Delete Technician
 app.delete("/api/technicians/:id", async (req, res) => {
-  await Technician.findByIdAndDelete(req.params.id);
-  res.json({ message: "Technician deleted" });
+  try {
+
+    await Technician.findByIdAndDelete(req.params.id);
+
+    res.json({
+      message: "Technician deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /* ================= BOOKING API ================= */
