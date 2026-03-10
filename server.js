@@ -258,37 +258,45 @@ const upload = multer({storage});
 
 /* ================= SERVICES ================= */
 
+/* ================= SERVICES ================= */
+
 app.post("/api/services", upload.single("image"), async (req, res) => {
 
   try {
 
     const { name, subtitle } = req.body;
 
-    const existing = await Service.findOne({ name });
-
-    if (existing) {
+    if (!name) {
       return res.status(400).json({
-        error: "Service with this name already exists"
+        error: "Service name required"
+      });
+    }
+
+    // check duplicate service
+    const existingService = await Service.findOne({ name });
+
+    if (existingService) {
+      return res.status(400).json({
+        error: "Service already exists"
       });
     }
 
     const service = await Service.create({
       name,
-      subtitle,
+      subtitle: subtitle || "",
       image: req.file ? `/uploads/${req.file.filename}` : ""
     });
 
-    res.json(service);
+    res.status(201).json(service);
 
   } catch (err) {
 
-    console.log(err);
+    console.log("SERVICE ERROR:", err);
     res.status(500).json({ error: err.message });
 
   }
 
 });
-
 app.get("/api/services",async(req,res)=>{
 
   const services = await Service.find().sort({createdAt:-1});
