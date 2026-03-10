@@ -310,11 +310,12 @@ app.post("/api/bookings/track", async (req, res) => {
   }
 });
 /* ================= SERVICE API ================= */
-/* ================= SERVICE API ================= */
+
+/* IMAGE UPLOAD SETUP */
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/");
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + "-" + file.originalname);
@@ -323,7 +324,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadPath));
 
 
 /* ADD SERVICE */
@@ -335,14 +336,16 @@ app.post("/api/services", upload.single("image"), async (req, res) => {
     const { name, subtitle } = req.body;
 
     const service = await Service.create({
-      image: req.file ? `/uploads/${req.file.filename}` : "",
       name,
-      subtitle
+      subtitle,
+      image: req.file ? `/uploads/${req.file.filename}` : ""
     });
 
     res.status(201).json(service);
 
   } catch (error) {
+
+    console.error("SERVICE ADD ERROR:", error);
 
     res.status(500).json({ error: error.message });
 
@@ -355,9 +358,17 @@ app.post("/api/services", upload.single("image"), async (req, res) => {
 
 app.get("/api/services", async (req, res) => {
 
-  const services = await Service.find().sort({ createdAt: -1 });
+  try {
 
-  res.json(services);
+    const services = await Service.find().sort({ createdAt: -1 });
+
+    res.json(services);
+
+  } catch (error) {
+
+    res.status(500).json({ error: error.message });
+
+  }
 
 });
 
@@ -366,24 +377,32 @@ app.get("/api/services", async (req, res) => {
 
 app.put("/api/services/:id", upload.single("image"), async (req, res) => {
 
-  const { name, subtitle } = req.body;
+  try {
 
-  const updateData = {
-    name,
-    subtitle
-  };
+    const { name, subtitle } = req.body;
 
-  if (req.file) {
-    updateData.image = `/uploads/${req.file.filename}`;
+    const updateData = {
+      name,
+      subtitle
+    };
+
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const service = await Service.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    res.json(service);
+
+  } catch (error) {
+
+    res.status(500).json({ error: error.message });
+
   }
-
-  const service = await Service.findByIdAndUpdate(
-    req.params.id,
-    updateData,
-    { new: true }
-  );
-
-  res.json(service);
 
 });
 
@@ -392,8 +411,16 @@ app.put("/api/services/:id", upload.single("image"), async (req, res) => {
 
 app.delete("/api/services/:id", async (req, res) => {
 
-  await Service.findByIdAndDelete(req.params.id);
+  try {
 
-  res.json({ message: "Service deleted" });
+    await Service.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Service deleted" });
+
+  } catch (error) {
+
+    res.status(500).json({ error: error.message });
+
+  }
 
 });
