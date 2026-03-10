@@ -161,7 +161,7 @@ app.delete("/api/models/:id", async (req, res) => {
   res.json({ message: "Model deleted" });
 });
 
-/* ================= TECHNICIAN API ================= */
+
 
 /* ================= TECHNICIAN API ================= */
 
@@ -310,23 +310,90 @@ app.post("/api/bookings/track", async (req, res) => {
   }
 });
 /* ================= SERVICE API ================= */
+/* ================= SERVICE API ================= */
 
-app.post("/api/services", async (req, res) => {
-  const service = await Service.create(req.body);
-  res.status(201).json(service);
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
 });
+
+const upload = multer({ storage });
+
+app.use("/uploads", express.static("uploads"));
+
+
+/* ADD SERVICE */
+
+app.post("/api/services", upload.single("image"), async (req, res) => {
+
+  try {
+
+    const { name, subtitle } = req.body;
+
+    const service = await Service.create({
+      image: req.file ? `/uploads/${req.file.filename}` : "",
+      name,
+      subtitle
+    });
+
+    res.status(201).json(service);
+
+  } catch (error) {
+
+    res.status(500).json({ error: error.message });
+
+  }
+
+});
+
+
+/* GET SERVICES */
 
 app.get("/api/services", async (req, res) => {
+
   const services = await Service.find().sort({ createdAt: -1 });
+
   res.json(services);
+
 });
 
-app.put("/api/services/:id", async (req, res) => {
-  const service = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+/* UPDATE SERVICE */
+
+app.put("/api/services/:id", upload.single("image"), async (req, res) => {
+
+  const { name, subtitle } = req.body;
+
+  const updateData = {
+    name,
+    subtitle
+  };
+
+  if (req.file) {
+    updateData.image = `/uploads/${req.file.filename}`;
+  }
+
+  const service = await Service.findByIdAndUpdate(
+    req.params.id,
+    updateData,
+    { new: true }
+  );
+
   res.json(service);
+
 });
+
+
+/* DELETE SERVICE */
 
 app.delete("/api/services/:id", async (req, res) => {
+
   await Service.findByIdAndDelete(req.params.id);
+
   res.json({ message: "Service deleted" });
+
 });
