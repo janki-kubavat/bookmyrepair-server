@@ -26,7 +26,9 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected");
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT}`)
+    );
   })
   .catch((err) => console.log("MongoDB error:", err));
 
@@ -65,7 +67,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
-  },
+  }
 });
 
 const upload = multer({
@@ -73,7 +75,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
     else cb(new Error("Only image files allowed"), false);
-  },
+  }
 });
 
 /* ================= ADMIN ================= */
@@ -92,7 +94,7 @@ app.post("/api/admin/register", async (req, res) => {
       name,
       email,
       passwordHash: hash,
-      passwordSalt: salt,
+      passwordSalt: salt
     });
 
     res.json(admin);
@@ -109,14 +111,13 @@ app.post("/api/admin/login", async (req, res) => {
     if (!admin) return res.status(401).json({ error: "Invalid login" });
 
     const hash = hashPassword(password, admin.passwordSalt);
-
     if (hash !== admin.passwordHash)
       return res.status(401).json({ error: "Invalid login" });
 
     res.json({
       message: "Login success",
       token: generateToken(),
-      admin,
+      admin
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -133,13 +134,6 @@ app.post("/api/brands", async (req, res) => {
 app.get("/api/brands", async (req, res) => {
   const brands = await Brand.find().sort({ createdAt: -1 });
   res.json(brands);
-});
-
-app.put("/api/brands/:id", async (req, res) => {
-  const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
-  res.json(brand);
 });
 
 app.delete("/api/brands/:id", async (req, res) => {
@@ -160,18 +154,6 @@ app.get("/api/models", async (req, res) => {
   res.json(models);
 });
 
-app.put("/api/models/:id", async (req, res) => {
-  const model = await Model.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
-  res.json(model);
-});
-
-app.delete("/api/models/:id", async (req, res) => {
-  await Model.findByIdAndDelete(req.params.id);
-  res.json({ message: "Model deleted" });
-});
-
 /* ================= TECHNICIANS ================= */
 
 app.post("/api/technicians", async (req, res) => {
@@ -182,18 +164,6 @@ app.post("/api/technicians", async (req, res) => {
 app.get("/api/technicians", async (req, res) => {
   const techs = await Technician.find().sort({ createdAt: -1 });
   res.json(techs);
-});
-
-app.put("/api/technicians/:id", async (req, res) => {
-  const tech = await Technician.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
-  res.json(tech);
-});
-
-app.delete("/api/technicians/:id", async (req, res) => {
-  await Technician.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
 });
 
 /* ================= BOOKINGS ================= */
@@ -208,10 +178,9 @@ app.post("/api/bookings", async (req, res) => {
 
     res.json({
       trackingId: booking.trackingId,
-      phone: booking.phone,
+      phone: booking.phone
     });
   } catch (error) {
-    console.error("Create booking error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -224,42 +193,6 @@ app.get("/api/bookings", async (req, res) => {
   res.json(bookings);
 });
 
-app.get("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findById(req.params.id).populate(
-    "technicianId"
-  );
-
-  if (!booking) return res.status(404).json({ message: "Booking not found" });
-
-  res.json(booking);
-});
-
-app.put("/api/bookings/:id", async (req, res) => {
-  const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  });
-
-  res.json(booking);
-});
-
-app.delete("/api/bookings/:id", async (req, res) => {
-  await Booking.findByIdAndDelete(req.params.id);
-  res.json({ message: "Booking deleted" });
-});
-
-app.post("/api/bookings/track", async (req, res) => {
-  const { trackingId, phone } = req.body;
-
-  const booking = await Booking.findOne({
-    trackingId: trackingId.trim().toUpperCase(),
-    phone: phone.trim(),
-  });
-
-  if (!booking) return res.status(404).json({ error: "Booking not found" });
-
-  res.json(booking);
-});
-
 /* ================= SERVICES ================= */
 
 app.post("/api/services", upload.single("image"), async (req, res) => {
@@ -269,7 +202,7 @@ app.post("/api/services", upload.single("image"), async (req, res) => {
     const service = await Service.create({
       name,
       subtitle: subtitle || "",
-      image: req.file ? `/uploads/${req.file.filename}` : "",
+      image: req.file ? `/uploads/${req.file.filename}` : ""
     });
 
     res.json(service);
@@ -283,35 +216,24 @@ app.get("/api/services", async (req, res) => {
   res.json(services);
 });
 
-app.put("/api/services/:id", upload.single("image"), async (req, res) => {
-  const data = {};
-
-  if (req.body.name) data.name = req.body.name;
-  if (req.body.subtitle) data.subtitle = req.body.subtitle;
-
-  if (req.file) data.image = `/uploads/${req.file.filename}`;
-
-  const service = await Service.findByIdAndUpdate(req.params.id, data, {
-    new: true,
-  });
-
-  res.json(service);
-});
-
 app.delete("/api/services/:id", async (req, res) => {
-  const service = await Service.findById(req.params.id);
+  try {
+    const service = await Service.findById(req.params.id);
 
-  if (service?.image) {
-    const filePath = path.join(
-      __dirname,
-      "uploads",
-      path.basename(service.image)
-    );
+    if (service?.image) {
+      const filePath = path.join(
+        __dirname,
+        "uploads",
+        path.basename(service.image)
+      );
 
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    await Service.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Service deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  await Service.findByIdAndDelete(req.params.id);
-
-  res.json({ message: "Service deleted" });
 });
