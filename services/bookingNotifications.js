@@ -1,20 +1,15 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,            // important: use 587 for Render
-  secure: false,        // must be false for port 587
+  service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
   }
 });
 
-// check SMTP connection
-transporter.verify((error) => {
+// Check if SMTP connection works
+transporter.verify((error, success) => {
   if (error) {
     console.log("❌ SMTP ERROR:", error);
   } else {
@@ -23,6 +18,7 @@ transporter.verify((error) => {
 });
 
 const sendBookingEmail = async (booking) => {
+
   try {
 
     const mailOptions = {
@@ -44,7 +40,7 @@ const sendBookingEmail = async (booking) => {
         <p><b>Pickup Type:</b> ${booking.pickupOption}</p>
         <p><b>Address:</b> ${booking.address}</p>
 
-        <br/>
+        <br>
 
         <p>Thank you for choosing <b>BookMyRepair</b>.</p>
       `
@@ -55,7 +51,9 @@ const sendBookingEmail = async (booking) => {
     console.log("📧 Booking email sent");
 
   } catch (err) {
+
     console.log("❌ Email error:", err);
+
   }
 };
 
