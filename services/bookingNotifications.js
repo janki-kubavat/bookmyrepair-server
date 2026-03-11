@@ -1,37 +1,55 @@
 const nodemailer = require("nodemailer");
 
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
+  }
+});
+
 const sendBookingEmail = async (booking) => {
+  try {
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS
-    }
-  });
+    const mailOptions = {
+      from: `"BookMyRepair" <${process.env.GMAIL_USER}>`,
+      to: booking.email,
 
-  const mailOptions = {
-    from: process.env.GMAIL_USER,
-    to: booking.email,
-    subject: "Booking Confirmation",
-    html: `
-      <h2>Booking Confirmed</h2>
+      subject: `Booking Confirmed - ${booking.trackingId}`,
 
-      <p>Hello ${booking.name}</p>
+      html: `
+        <h2>📱 Booking Confirmed</h2>
 
-      <p><b>Brand:</b> ${booking.brand}</p>
-      <p><b>Model:</b> ${booking.model}</p>
-      <p><b>Phone:</b> ${booking.phone}</p>
-      <p><b>Primary Issue:</b> ${booking.primaryIssue}</p>
-      <p><b>Secondary Issue:</b> ${booking.secondaryIssue}</p>
-      <p><b>Pickup Type:</b> ${booking.pickupType}</p>
-      <p><b>Address:</b> ${booking.address}</p>
+        <p>Hello <b>${booking.name}</b></p>
 
-      <p>Thank you for booking with us.</p>
-    `
-  };
+        <p><b>Tracking ID:</b> ${booking.trackingId}</p>
 
-  await transporter.sendMail(mailOptions);
+        <hr/>
+
+        <p><b>Brand:</b> ${booking.brand}</p>
+        <p><b>Model:</b> ${booking.model}</p>
+
+        <p><b>Service:</b> ${booking.service}</p>
+
+        <p><b>Pickup Type:</b> ${booking.pickupOption}</p>
+
+        <p><b>Address:</b> ${booking.address}</p>
+
+        <br>
+
+        <p>Thank you for choosing BookMyRepair.</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log("📧 Booking email sent");
+
+  } catch (err) {
+    console.log("Email error:", err);
+  }
 };
 
-module.exports = { sendBookingEmail };
+module.exports = {
+  sendBookingEmail
+};
