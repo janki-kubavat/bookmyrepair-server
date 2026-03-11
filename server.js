@@ -197,20 +197,22 @@ app.delete("/api/technicians/:id", async (req, res) => {
 
 app.post("/api/bookings", async (req, res) => {
   try {
+
     const booking = await Booking.create(req.body);
 
-    try {
-      if (booking.email) {
-        await sendBookingEmail(booking);
-      }
-    } catch (err) {
-      console.log("Email error:", err.message);
-    }
-
+    // Send response first (fast)
     res.json({
       trackingId: booking.trackingId,
       phone: booking.phone
     });
+
+    // Send email in background
+    if (booking.email) {
+      sendBookingEmail(booking).catch(err =>
+        console.log("Email error:", err)
+      );
+    }
+
   } catch (error) {
     console.error("Booking error:", error);
     res.status(500).json({ error: "Booking failed" });
