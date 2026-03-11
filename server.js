@@ -212,7 +212,27 @@ app.post("/api/bookings",async(req,res)=>{
   });
 
 });
+/* ================= GET ALL BOOKINGS ================= */
 
+app.get("/api/bookings", async (req, res) => {
+
+  try {
+
+    const bookings = await Booking.find()
+      .sort({ createdAt: -1 })
+      .populate("brandId")
+      .populate("modelId");
+
+    res.json(bookings);
+
+  } catch (err) {
+
+    console.log("BOOKINGS FETCH ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch bookings" });
+
+  }
+
+});
 
 app.post("/api/bookings/track",async(req,res)=>{
 
