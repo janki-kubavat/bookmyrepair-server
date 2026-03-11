@@ -17,6 +17,7 @@ const Service = require("./models/Service");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const { sendBookingEmail } = require("./services/bookingNotifications");
 
 /* ================= DATABASE ================= */
 
@@ -168,12 +169,19 @@ app.delete("/api/technicians/:id", async(req,res)=>{
 
 app.post("/api/bookings", async (req, res) => {
   try {
+
     const booking = await Booking.create(req.body);
+
+    // SEND EMAIL
+    if (booking.email) {
+      await sendBookingEmail(booking);
+    }
 
     res.json({
       trackingId: booking.trackingId,
       phone: booking.phone
     });
+
   } catch (error) {
     console.error("Create booking error:", error);
     res.status(500).json({ error: error.message });
