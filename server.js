@@ -200,13 +200,13 @@ app.post("/api/bookings", async (req, res) => {
 
     const booking = await Booking.create(req.body);
 
-    // Send response first (fast)
+    // send response immediately
     res.json({
       trackingId: booking.trackingId,
       phone: booking.phone
     });
 
-    // Send email in background
+    // send email in background (important)
     if (booking.email) {
       sendBookingEmail(booking).catch(err =>
         console.log("Email error:", err)
