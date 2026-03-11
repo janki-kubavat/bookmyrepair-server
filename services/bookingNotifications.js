@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 
+// create transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -8,13 +9,13 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// send booking email
 const sendBookingEmail = async (booking) => {
   try {
 
     const mailOptions = {
       from: `"BookMyRepair" <${process.env.GMAIL_USER}>`,
       to: booking.email,
-
       subject: `Booking Confirmed - ${booking.trackingId}`,
 
       html: `
@@ -46,10 +47,8 @@ const sendBookingEmail = async (booking) => {
     console.log("📧 Booking email sent");
 
   } catch (err) {
-    console.log("Email error:", err);
+    console.log("Email error:", err.message);
   }
 };
 
-module.exports = {
-  sendBookingEmail
-};
+module.exports = { sendBookingEmail };
