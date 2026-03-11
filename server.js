@@ -20,27 +20,21 @@ const { sendBookingEmail } = require("./services/bookingNotifications");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 /* ================= DATABASE ================= */
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected");
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on port ${PORT}`)
-    );
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
   })
   .catch((err) => console.log("MongoDB error:", err));
-
-/* ================= MIDDLEWARE ================= */
-
-/* ================= MIDDLEWARE ================= */
-
-app.use(cors());
-app.options("*", cors());
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 /* ================= ROOT ================= */
 
@@ -66,19 +60,16 @@ if (!fs.existsSync(uploadPath)) {
 app.use("/uploads", express.static(uploadPath));
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
+  destination: (req, file, cb) => cb(null, uploadPath),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + "-" + file.originalname)
 });
 
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files allowed"), false);
+    else cb(new Error("Only images allowed"), false);
   }
 });
 
@@ -115,6 +106,7 @@ app.post("/api/admin/login", async (req, res) => {
     if (!admin) return res.status(401).json({ error: "Invalid login" });
 
     const hash = hashPassword(password, admin.passwordSalt);
+
     if (hash !== admin.passwordHash)
       return res.status(401).json({ error: "Invalid login" });
 
@@ -140,6 +132,13 @@ app.get("/api/brands", async (req, res) => {
   res.json(brands);
 });
 
+app.put("/api/brands/:id", async (req, res) => {
+  const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, {
+    new: true
+  });
+  res.json(brand);
+});
+
 app.delete("/api/brands/:id", async (req, res) => {
   await Model.deleteMany({ brandId: req.params.id });
   await Brand.findByIdAndDelete(req.params.id);
@@ -158,6 +157,18 @@ app.get("/api/models", async (req, res) => {
   res.json(models);
 });
 
+app.put("/api/models/:id", async (req, res) => {
+  const model = await Model.findByIdAndUpdate(req.params.id, req.body, {
+    new: true
+  });
+  res.json(model);
+});
+
+app.delete("/api/models/:id", async (req, res) => {
+  await Model.findByIdAndDelete(req.params.id);
+  res.json({ message: "Model deleted" });
+});
+
 /* ================= TECHNICIANS ================= */
 
 app.post("/api/technicians", async (req, res) => {
@@ -170,15 +181,24 @@ app.get("/api/technicians", async (req, res) => {
   res.json(techs);
 });
 
-/* ================= BOOKINGS ================= */
+app.put("/api/technicians/:id", async (req, res) => {
+  const tech = await Technician.findByIdAndUpdate(req.params.id, req.body, {
+    new: true
+  });
+  res.json(tech);
+});
 
+app.delete("/api/technicians/:id", async (req, res) => {
+  await Technician.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted" });
+});
+
+/* ================= BOOKINGS ================= */
 
 app.post("/api/bookings", async (req, res) => {
   try {
-
     const booking = await Booking.create(req.body);
 
-    // send email but don't break booking if email fails
     try {
       if (booking.email) {
         await sendBookingEmail(booking);
@@ -191,15 +211,9 @@ app.post("/api/bookings", async (req, res) => {
       trackingId: booking.trackingId,
       phone: booking.phone
     });
-
   } catch (error) {
-
-    console.error("Create booking error:", error);
-
-    res.status(500).json({
-      error: "Booking failed"
-    });
-
+    console.error("Booking error:", error);
+    res.status(500).json({ error: "Booking failed" });
   }
 });
 
@@ -209,6 +223,52 @@ app.get("/api/bookings", async (req, res) => {
     .populate("technicianId");
 
   res.json(bookings);
+});
+
+app.get("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+
+  res.json(booking);
+});
+
+app.put("/api/bookings/:id", async (req, res) => {
+  const booking = await Booking.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
+
+  res.json(booking);
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+  await Booking.findByIdAndDelete(req.params.id);
+  res.json({ message: "Booking deleted" });
+});
+
+/* ================= TRACK BOOKING ================= */
+
+app.post("/api/bookings/track", async (req, res) => {
+  try {
+    const { trackingId, phone } = req.body;
+
+    const booking = await Booking.findOne({
+      trackingId: trackingId.trim().toUpperCase(),
+      phone: phone.trim()
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /* ================= SERVICES ================= */
@@ -234,6 +294,25 @@ app.get("/api/services", async (req, res) => {
   res.json(services);
 });
 
+app.put("/api/services/:id", upload.single("image"), async (req, res) => {
+  const data = {};
+
+  if (req.body.name) data.name = req.body.name;
+  if (req.body.subtitle) data.subtitle = req.body.subtitle;
+
+  if (req.file) {
+    data.image = `/uploads/${req.file.filename}`;
+  }
+
+  const service = await Service.findByIdAndUpdate(
+    req.params.id,
+    data,
+    { new: true }
+  );
+
+  res.json(service);
+});
+
 app.delete("/api/services/:id", async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
@@ -245,12 +324,15 @@ app.delete("/api/services/:id", async (req, res) => {
         path.basename(service.image)
       );
 
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
     await Service.findByIdAndDelete(req.params.id);
 
     res.json({ message: "Service deleted" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
