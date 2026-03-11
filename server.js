@@ -256,8 +256,7 @@ app.post("/api/bookings/track", async (req, res) => {
 });
 
 /* ================= IMAGE UPLOAD ================= */
-
-const uploadPath = path.join(__dirname, "uploads");
+const filePath = path.join(__dirname, "uploads", path.basename(service.image));
 
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
@@ -284,7 +283,7 @@ const upload = multer({
     }
   }
 });
-/* ================= SERVICES ================= */
+
 
 /* ================= SERVICES ================= */
 
@@ -363,7 +362,6 @@ app.put("/api/services/:id", upload.single("image"), async (req, res) => {
 
 
 /* ================= DELETE SERVICE ================= */
-
 app.delete("/api/services/:id", async (req, res) => {
   try {
 
@@ -371,7 +369,7 @@ app.delete("/api/services/:id", async (req, res) => {
 
     if (service?.image) {
 
-      const filePath = path.join(__dirname, service.image);
+      const filePath = path.join(__dirname,"uploads",path.basename(service.image));
 
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
@@ -386,9 +384,4 @@ app.delete("/api/services/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-app.delete("/api/services/:id", async(req,res)=>{
-  await Service.findByIdAndDelete(req.params.id);
-  res.json({message:"Service deleted"});
 });
