@@ -168,20 +168,34 @@ app.get("/api/technicians", async (req, res) => {
 
 /* ================= BOOKINGS ================= */
 
+
 app.post("/api/bookings", async (req, res) => {
   try {
+
     const booking = await Booking.create(req.body);
 
-    if (booking.email) {
-      await sendBookingEmail(booking);
+    // send email but don't break booking if email fails
+    try {
+      if (booking.email) {
+        await sendBookingEmail(booking);
+      }
+    } catch (err) {
+      console.log("Email error:", err.message);
     }
 
     res.json({
       trackingId: booking.trackingId,
       phone: booking.phone
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+
+    console.error("Create booking error:", error);
+
+    res.status(500).json({
+      error: "Booking failed"
+    });
+
   }
 });
 
