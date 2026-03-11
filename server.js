@@ -174,13 +174,13 @@ app.post("/api/bookings", async(req,res)=>{
   });
 });
 
-app.get("/api/bookings", async(req,res)=>{
-  const bookings = await Booking.find()
-  .sort({createdAt:-1})
-  .populate("brandId")
-  .populate("modelId");
-
-  res.json(bookings);
+app.get("/api/bookings", async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/bookings/:id", async(req,res)=>{
