@@ -165,51 +165,120 @@ app.delete("/api/technicians/:id", async(req,res)=>{
 
 /* ================= BOOKINGS ================= */
 
-app.post("/api/bookings", async(req,res)=>{
-  const booking = await Booking.create(req.body);
+/* ================= BOOKINGS ================= */
 
-  res.json({
-    trackingId:booking.trackingId,
-    phone:booking.phone
-  });
+// CREATE BOOKING
+app.post("/api/bookings", async (req, res) => {
+  try {
+
+    const booking = await Booking.create(req.body);
+
+    res.json({
+      trackingId: booking.trackingId,
+      phone: booking.phone
+    });
+
+  } catch (error) {
+    console.error("Create booking error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get("/api/bookings", async(req,res)=>{
-  const bookings = await Booking.find()
-  .sort({createdAt:-1})
-  .populate("brandId")
-  .populate("modelId");
 
-  res.json(bookings);
+// GET ALL BOOKINGS
+app.get("/api/bookings", async (req, res) => {
+  try {
+
+    const bookings = await Booking.find()
+      .populate("brandId")
+      .populate("modelId")
+      .sort({ createdAt: -1 });
+
+    res.json(bookings);
+
+  } catch (error) {
+    console.error("Fetch bookings error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get("/api/bookings/:id", async(req,res)=>{
-  const booking = await Booking.findById(req.params.id);
-  res.json(booking);
+
+// GET SINGLE BOOKING
+app.get("/api/bookings/:id", async (req, res) => {
+  try {
+
+    const booking = await Booking.findById(req.params.id)
+      .populate("brandId")
+      .populate("modelId");
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(booking);
+
+  } catch (error) {
+    console.error("Get booking error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.put("/api/bookings/:id", async(req,res)=>{
-  const booking = await Booking.findByIdAndUpdate(req.params.id,req.body,{new:true});
-  res.json(booking);
+
+// UPDATE BOOKING
+app.put("/api/bookings/:id", async (req, res) => {
+  try {
+
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json(booking);
+
+  } catch (error) {
+    console.error("Update booking error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.delete("/api/bookings/:id", async(req,res)=>{
-  await Booking.findByIdAndDelete(req.params.id);
-  res.json({message:"Booking deleted"});
+
+// DELETE BOOKING
+app.delete("/api/bookings/:id", async (req, res) => {
+  try {
+
+    await Booking.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Booking deleted" });
+
+  } catch (error) {
+    console.error("Delete booking error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post("/api/bookings/track", async(req,res)=>{
 
-  const {trackingId,phone}=req.body;
+// TRACK BOOKING
+app.post("/api/bookings/track", async (req, res) => {
+  try {
 
-  const booking = await Booking.findOne({
-    trackingId:trackingId.trim().toUpperCase(),
-    phone:phone.trim()
-  });
+    const { trackingId, phone } = req.body;
 
-  if(!booking) return res.status(404).json({error:"Booking not found"});
+    const booking = await Booking.findOne({
+      trackingId: trackingId.trim().toUpperCase(),
+      phone: phone.trim()
+    });
 
-  res.json(booking);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(booking);
+
+  } catch (error) {
+    console.error("Track booking error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /* ================= IMAGE UPLOAD ================= */
