@@ -23,30 +23,21 @@ const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {
   console.log("✅ MongoDB Connected");
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-  });
-
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 })
-.catch((err)=>{
-  console.log("MongoDB error",err);
-});
-
+.catch(err => console.log("MongoDB error:", err));
 
 /* ================= MIDDLEWARE ================= */
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({extended:true}));
-
+app.use(express.urlencoded({ extended: true }));
 
 /* ================= ROOT ================= */
 
-app.get("/",(req,res)=>{
+app.get("/", (req,res)=>{
   res.send("Server is running ✅");
 });
-
 
 /* ================= PASSWORD UTILS ================= */
 
@@ -55,11 +46,9 @@ crypto.pbkdf2Sync(password,salt,100000,64,"sha512").toString("hex");
 
 const generateToken = ()=>crypto.randomBytes(24).toString("hex");
 
-
 /* ================= ADMIN ================= */
 
-app.post("/api/admin/register",async(req,res)=>{
-
+app.post("/api/admin/register", async(req,res)=>{
   try{
 
     const {name,email,password}=req.body;
@@ -82,12 +71,9 @@ app.post("/api/admin/register",async(req,res)=>{
   }catch(err){
     res.status(500).json({error:err.message});
   }
-
 });
 
-
-app.post("/api/admin/login",async(req,res)=>{
-
+app.post("/api/admin/login", async(req,res)=>{
   try{
 
     const {email,password}=req.body;
@@ -96,9 +82,8 @@ app.post("/api/admin/login",async(req,res)=>{
     if(!admin) return res.status(401).json({error:"Invalid login"});
 
     const hash = hashPassword(password,admin.passwordSalt);
-
     if(hash!==admin.passwordHash)
-    return res.status(401).json({error:"Invalid login"});
+      return res.status(401).json({error:"Invalid login"});
 
     res.json({
       message:"Login success",
@@ -109,132 +94,111 @@ app.post("/api/admin/login",async(req,res)=>{
   }catch(err){
     res.status(500).json({error:err.message});
   }
-
 });
 
+/* ================= BRANDS ================= */
 
-/* ================= BRAND ================= */
-
-app.post("/api/brands",async(req,res)=>{
+app.post("/api/brands", async(req,res)=>{
   const brand = await Brand.create(req.body);
   res.json(brand);
 });
 
-app.get("/api/brands",async(req,res)=>{
+app.get("/api/brands", async(req,res)=>{
   const brands = await Brand.find().sort({createdAt:-1});
   res.json(brands);
 });
 
-app.put("/api/brands/:id",async(req,res)=>{
+app.put("/api/brands/:id", async(req,res)=>{
   const brand = await Brand.findByIdAndUpdate(req.params.id,req.body,{new:true});
   res.json(brand);
 });
 
-app.delete("/api/brands/:id",async(req,res)=>{
-
+app.delete("/api/brands/:id", async(req,res)=>{
   await Model.deleteMany({brandId:req.params.id});
   await Brand.findByIdAndDelete(req.params.id);
-
   res.json({message:"Brand deleted"});
 });
 
-
 /* ================= MODELS ================= */
 
-app.post("/api/models",async(req,res)=>{
+app.post("/api/models", async(req,res)=>{
   const model = await Model.create(req.body);
   res.json(model);
 });
 
-app.get("/api/models",async(req,res)=>{
+app.get("/api/models", async(req,res)=>{
   const models = await Model.find().populate("brandId");
   res.json(models);
 });
 
-app.put("/api/models/:id",async(req,res)=>{
+app.put("/api/models/:id", async(req,res)=>{
   const model = await Model.findByIdAndUpdate(req.params.id,req.body,{new:true});
   res.json(model);
 });
 
-app.delete("/api/models/:id",async(req,res)=>{
+app.delete("/api/models/:id", async(req,res)=>{
   await Model.findByIdAndDelete(req.params.id);
   res.json({message:"Model deleted"});
 });
 
-
 /* ================= TECHNICIANS ================= */
 
-app.post("/api/technicians",async(req,res)=>{
-
+app.post("/api/technicians", async(req,res)=>{
   const tech = await Technician.create(req.body);
-
-  res.json({
-    message:"Technician added",
-    technician:tech
-  });
-
+  res.json({message:"Technician added",technician:tech});
 });
 
-app.get("/api/technicians",async(req,res)=>{
-
+app.get("/api/technicians", async(req,res)=>{
   const techs = await Technician.find().sort({createdAt:-1});
-
   res.json(techs);
-
 });
 
-app.put("/api/technicians/:id",async(req,res)=>{
-
+app.put("/api/technicians/:id", async(req,res)=>{
   const tech = await Technician.findByIdAndUpdate(req.params.id,req.body,{new:true});
-
   res.json(tech);
-
 });
 
-app.delete("/api/technicians/:id",async(req,res)=>{
-
+app.delete("/api/technicians/:id", async(req,res)=>{
   await Technician.findByIdAndDelete(req.params.id);
-
   res.json({message:"Deleted"});
-
 });
-
 
 /* ================= BOOKINGS ================= */
 
-app.post("/api/bookings",async(req,res)=>{
-
+app.post("/api/bookings", async(req,res)=>{
   const booking = await Booking.create(req.body);
 
   res.json({
     trackingId:booking.trackingId,
     phone:booking.phone
   });
-
-});
-/* ================= GET ALL BOOKINGS ================= */
-
-app.get("/api/bookings", async (req, res) => {
-
-  try {
-
-    const bookings = await Booking.find()
-      .sort({ createdAt: -1 })
-      .populate("brandId")
-      .populate("modelId");
-
-    res.json(bookings);
-
-  } catch (err) {
-
-    console.log("BOOKINGS FETCH ERROR:", err);
-    res.status(500).json({ error: "Failed to fetch bookings" });
-
-  }
-
 });
 
-app.post("/api/bookings/track",async(req,res)=>{
+app.get("/api/bookings", async(req,res)=>{
+  const bookings = await Booking.find()
+  .sort({createdAt:-1})
+  .populate("brandId")
+  .populate("modelId");
+
+  res.json(bookings);
+});
+
+app.get("/api/bookings/:id", async(req,res)=>{
+  const booking = await Booking.findById(req.params.id);
+  res.json(booking);
+});
+
+app.put("/api/bookings/:id", async(req,res)=>{
+  const booking = await Booking.findByIdAndUpdate(req.params.id,req.body,{new:true});
+  res.json(booking);
+});
+
+app.delete("/api/bookings/:id", async(req,res)=>{
+  await Booking.findByIdAndDelete(req.params.id);
+  res.json({message:"Booking deleted"});
+});
+
+app.post("/api/bookings/track", async(req,res)=>{
 
   const {trackingId,phone}=req.body;
 
@@ -246,11 +210,9 @@ app.post("/api/bookings/track",async(req,res)=>{
   if(!booking) return res.status(404).json({error:"Booking not found"});
 
   res.json(booking);
-
 });
 
-
-/* ================= IMAGE UPLOAD FIX ================= */
+/* ================= IMAGE UPLOAD ================= */
 
 const uploadPath = path.join(__dirname,"uploads");
 
@@ -260,80 +222,52 @@ if(!fs.existsSync(uploadPath)){
 
 app.use("/uploads",express.static(uploadPath));
 
-
 const storage = multer.diskStorage({
-
-  destination:(req,file,cb)=>{
-    cb(null,uploadPath);
-  },
-
-  filename:(req,file,cb)=>{
-    cb(null,Date.now()+"-"+file.originalname);
-  }
-
+  destination:(req,file,cb)=>cb(null,uploadPath),
+  filename:(req,file,cb)=>cb(null,Date.now()+"-"+file.originalname)
 });
 
 const upload = multer({storage});
 
-
 /* ================= SERVICES ================= */
 
-/* ================= SERVICES ================= */
+app.post("/api/services", upload.single("image"), async(req,res)=>{
 
-app.post("/api/services", upload.single("image"), async (req, res) => {
+  try{
 
-  try {
+    const {name,subtitle}=req.body;
 
-    const { name, subtitle } = req.body;
+    if(!name) return res.status(400).json({error:"Service name required"});
 
-    if (!name) {
-      return res.status(400).json({
-        error: "Service name required"
-      });
-    }
+    const exist = await Service.findOne({
+      name:{$regex:new RegExp("^"+name+"$","i")}
+    });
 
-    // check duplicate service
-    const existingService = await Service.findOne({ name });
-
-    if (existingService) {
-      return res.status(400).json({
-        error: "Service already exists"
-      });
-    }
+    if(exist) return res.status(400).json({error:"Service already exists"});
 
     const service = await Service.create({
       name,
-      subtitle: subtitle || "",
-      image: req.file ? `/uploads/${req.file.filename}` : ""
+      subtitle:subtitle || "",
+      image:req.file ? `/uploads/${req.file.filename}` : ""
     });
 
-    res.status(201).json(service);
+    res.json(service);
 
-  } catch (err) {
-
-    console.log("SERVICE ERROR:", err);
-    res.status(500).json({ error: err.message });
-
+  }catch(err){
+    res.status(500).json({error:err.message});
   }
-
 });
-app.get("/api/services",async(req,res)=>{
 
+app.get("/api/services", async(req,res)=>{
   const services = await Service.find().sort({createdAt:-1});
-
   res.json(services);
-
 });
 
-
-app.put("/api/services/:id",upload.single("image"),async(req,res)=>{
+app.put("/api/services/:id", upload.single("image"), async(req,res)=>{
 
   const {name,subtitle}=req.body;
 
-  const data={
-    name,
-    subtitle
-  };
+  const data={name,subtitle};
 
   if(req.file){
     data.image=`/uploads/${req.file.filename}`;
@@ -342,14 +276,9 @@ app.put("/api/services/:id",upload.single("image"),async(req,res)=>{
   const service = await Service.findByIdAndUpdate(req.params.id,data,{new:true});
 
   res.json(service);
-
 });
 
-
-app.delete("/api/services/:id",async(req,res)=>{
-
+app.delete("/api/services/:id", async(req,res)=>{
   await Service.findByIdAndDelete(req.params.id);
-
   res.json({message:"Service deleted"});
-
 });
