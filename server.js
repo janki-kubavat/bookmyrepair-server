@@ -163,7 +163,6 @@ app.delete("/api/technicians/:id", async(req,res)=>{
   res.json({message:"Deleted"});
 });
 
-/* ================= BOOKINGS ================= */
 
 /* ================= BOOKINGS ================= */
 
@@ -258,68 +257,135 @@ app.post("/api/bookings/track", async (req, res) => {
 
 /* ================= IMAGE UPLOAD ================= */
 
-const uploadPath = path.join(__dirname,"uploads");
+const uploadPath = path.join(__dirname, "uploads");
 
-if(!fs.existsSync(uploadPath)){
-  fs.mkdirSync(uploadPath,{recursive:true});
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
 }
 
-app.use("/uploads",express.static(uploadPath));
+app.use("/uploads", express.static(uploadPath));
 
 const storage = multer.diskStorage({
-  destination:(req,file,cb)=>cb(null,uploadPath),
-  filename:(req,file,cb)=>cb(null,Date.now()+"-"+file.originalname)
+  destination: (req, file, cb) => {
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
 });
 
-const upload = multer({storage});
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files allowed"), false);
+    }
+  }
+});
+/* ================= SERVICES ================= */
 
 /* ================= SERVICES ================= */
 
-app.post("/api/services", upload.single("image"), async(req,res)=>{
+app.post("/api/services", upload.single("image"), async (req, res) => {
+  try {
 
-  try{
+    const { name, subtitle } = req.body;
 
-    const {name,subtitle}=req.body;
-
-    if(!name) return res.status(400).json({error:"Service name required"});
+    if (!name) {
+      return res.status(400).json({ error: "Service name required" });
+    }
 
     const exist = await Service.findOne({
-      name:{$regex:new RegExp("^"+name+"$","i")}
+      name: { $regex: new RegExp("^" + name + "$", "i") }
     });
 
-    if(exist) return res.status(400).json({error:"Service already exists"});
+    if (exist) {
+      return res.status(400).json({ error: "Service already exists" });
+    }
 
     const service = await Service.create({
       name,
-      subtitle:subtitle || "",
-      image:req.file ? `/uploads/${req.file.filename}` : ""
+      subtitle: subtitle || "",
+      image: req.file ? `/uploads/${req.file.filename}` : ""
     });
 
     res.json(service);
 
-  }catch(err){
-    res.status(500).json({error:err.message});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get("/api/services", async(req,res)=>{
-  const services = await Service.find().sort({createdAt:-1});
-  res.json(services);
+
+/* ================= GET SERVICES ================= */
+
+app.get("/api/services", async (req, res) => {
+  try {
+
+    const services = await Service.find().sort({ createdAt: -1 });
+
+    res.json(services);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.put("/api/services/:id", upload.single("image"), async(req,res)=>{
 
-  const {name,subtitle}=req.body;
+/* ================= UPDATE SERVICE ================= */
 
-  const data={name,subtitle};
+app.put("/api/services/:id", upload.single("image"), async (req, res) => {
+  try {
 
-  if(req.file){
-    data.image=`/uploads/${req.file.filename}`;
+    const data = {};
+
+    if (req.body.name) data.name = req.body.name;
+    if (req.body.subtitle) data.subtitle = req.body.subtitle;
+
+    if (req.file) {
+      data.image = `/uploads/${req.file.filename}`;
+    }
+
+    const service = await Service.findByIdAndUpdate(
+      req.params.id,
+      data,
+      { new: true }
+    );
+
+    res.json(service);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  const service = await Service.findByIdAndUpdate(req.params.id,data,{new:true});
 
-  res.json(service);
+/* ================= DELETE SERVICE ================= */
+
+app.delete("/api/services/:id", async (req, res) => {
+  try {
+
+    const service = await Service.findById(req.params.id);
+
+    if (service?.image) {
+
+      const filePath = path.join(__dirname, service.image);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+    }
+
+    await Service.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Service deleted" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete("/api/services/:id", async(req,res)=>{
