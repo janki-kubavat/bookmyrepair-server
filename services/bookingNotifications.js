@@ -10,6 +10,15 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Check SMTP connection
+transporter.verify((error) => {
+  if (error) {
+    console.log("❌ SMTP ERROR:", error);
+  } else {
+    console.log("✅ SMTP READY");
+  }
+});
+
 const sendBookingEmail = async (booking) => {
   try {
 
@@ -43,7 +52,7 @@ const sendBookingEmail = async (booking) => {
     console.log("📧 Booking email sent");
 
   } catch (err) {
-    console.log("Email error:", err.message);
+    console.log("❌ Email error:", err);
   }
 };
 
